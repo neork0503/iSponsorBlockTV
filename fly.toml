@@ -1,0 +1,8 @@
+app = "isponsorblocktv"
+
+[build]
+  image = "ghcr.io/dmunozv04/isponsorblocktv"
+
+[mounts]
+  source = "data"
+  destination = "/app/data"
