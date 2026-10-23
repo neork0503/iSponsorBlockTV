@@ -448,6 +448,20 @@ html.kb.port #view>.pl{height:min(var(--ph,56.25vw),30vh);height:min(var(--ph,56
 html.kb.port #view .tabs{top:min(var(--ph,56.25vw),30vh);top:min(var(--ph,56.25vw),30dvh)}
 html.kb.port #view .chatbox{height:calc(100vh - min(var(--ph,56.25vw),30vh) - 56px);height:calc(100dvh - min(var(--ph,56.25vw),30dvh) - 56px)}
 html.kb nav,html.kb #totop{display:none}
+/* ---------- indice d'audience (chat actif vs spectateurs affichés) ---------- */
+.aud{display:flex;align-items:center;gap:10px;margin:2px 12px 8px;padding:9px 10px 9px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);font-size:13px;line-height:1.35}
+.aud .d{flex:none;width:10px;height:10px;border-radius:5px;background:#6b777c}
+.aud[data-l=ok] .d{background:#53fc18;box-shadow:0 0 10px rgba(83,252,24,.6)}
+.aud[data-l=calm] .d{background:#ffb347}
+.aud[data-l=low] .d{background:#ff5a5a}
+.aud[data-l=wait] .d{animation:bl 1s infinite alternate}
+.aud .t{flex:1;min-width:0}.aud .t b{display:block;font-size:13px}.aud .t span{color:var(--m);font-size:12px}
+.aud button{flex:none;width:36px;height:36px;border-radius:18px;border:1px solid var(--line);background:var(--card2);color:#fff;font-size:15px}
+@keyframes bl{to{opacity:.3}}
+.cbar .achip{display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11.5px}
+.cbar .achip i{width:8px;height:8px;border-radius:4px;background:#6b777c}
+.cbar .achip[data-l=ok] i{background:#53fc18}.cbar .achip[data-l=calm] i{background:#ffb347}.cbar .achip[data-l=low] i{background:#ff5a5a}.cbar .achip[data-l=wait] i{animation:bl 1s infinite alternate}
+.cbar b{flex:0 1 auto;margin-right:auto}
 </style></head>
 <body>
 <header id="hdr"></header>
@@ -1882,7 +1896,7 @@ html.kb nav,html.kb #totop{display:none}
       var f = host.querySelector('iframe'); if (!f) return;
       host.dataset.cb = 1;
       var wide = host.classList.contains('chside'), bar = document.createElement('div'); bar.className = 'cbar';
-      bar.innerHTML = '<b>💬 Chat</b><button data-a="z-" aria-label="Texte plus petit">A\u2212</button><button data-a="z+" aria-label="Texte plus grand">A+</button><button data-a="r" aria-label="Recharger le chat">⟳</button>' + (wide ? '<button data-a="x" aria-label="Masquer le chat">▸</button>' : '');
+      bar.innerHTML = '<b>💬 Chat</b><button class="achip" data-a="aud" data-l="wait" aria-label="Indice d’audience"><i></i><span>Mesure…</span></button><button data-a="z-" aria-label="Texte plus petit">A\u2212</button><button data-a="z+" aria-label="Texte plus grand">A+</button><button data-a="r" aria-label="Recharger le chat">⟳</button>' + (wide ? '<button data-a="x" aria-label="Masquer le chat">▸</button>' : '');
       var ov = document.createElement('div');
       host.insertBefore(ov, host.firstChild); host.insertBefore(bar, host.firstChild);
       var reload = chatFrameState(host, f, ov), z = +lsGet('mk_czp', 1) || 1;
@@ -1892,11 +1906,90 @@ html.kb nav,html.kb #totop{display:none}
       bar.onclick = function (e) {
         var b = e.target.closest('button'); if (!b) return; tap();
         var a = b.dataset.a;
-        if (a === 'r') reload();
+        if (a === 'aud') audSheet();
+        else if (a === 'r') reload();
         else if (wide) { var t = {'z-': 'cz-', 'z+': 'cz+', x: 'chx'}[a], x = $(t); if (x) x.click(); }   // en grand écran, ce sont les commandes déjà gérées par la page
         else zoom(z + (a === 'z+' ? 0.1 : -0.1));
       };
     });
+  }
+
+
+  // ---------- indice d'audience : Kick ne dit pas combien de spectateurs sont des bots ; on compare donc les personnes qui écrivent
+  // dans le chat (connexion directe au chat du live) au nombre de spectateurs affichés. C'est une estimation, jamais une preuve.
+  function verdict(v, u, min) {
+    if (v == null) return {l: 'na', t: 'Spectateurs indisponibles', s: 'Impossible de comparer pour le moment.'};
+    if (v < 50) return {l: 'na', t: 'Trop peu de spectateurs pour estimer', s: u + ' personne' + (u > 1 ? 's' : '') + ' ont écrit dans le chat.'};
+    var pct = Math.round(u / v * 1000) / 10, txt = u + ' chatteur' + (u > 1 ? 's' : '') + ' sur ' + v.toLocaleString('fr-FR') + ' spectateurs (' + String(pct).replace('.', ',') + ' %)';
+    if (min < 3) {
+      var sec = Math.round(min * 60 / 10) * 10;
+      return {l: 'wait', t: 'Mesure en cours…', s: txt + ' · ' + (sec < 10 ? 'démarrage' : sec < 60 ? sec + ' s' : Math.floor(min) + ' min') + ' sur 3 min'};
+    }
+    // plus l'audience est grande, plus la part de gens qui écrivent est naturellement faible : le seuil baisse avec le nombre de spectateurs
+    var f = min >= 10 ? 1 : 0.5 + 0.05 * min, r = u / v, okT = Math.min(0.08, Math.max(0.012, 0.045 * Math.pow(1000 / v, 0.25))) * f;
+    if (r >= okT) return {l: 'ok', t: 'Chat actif : audience cohérente', s: txt};
+    if (r >= okT * 0.4) return {l: 'calm', t: 'Chat plutôt calme', s: txt};
+    return {l: 'low', t: 'Très peu d’interaction', s: txt + ' · une partie des spectateurs peut ne pas être réelle'};
+  }
+  window.__mkVerdict = verdict;
+  var AUD = null;
+  function audStop() { if (!AUD) return; AUD.dead = true; clearInterval(AUD.timer); clearTimeout(AUD.retry); try { AUD.ws && AUD.ws.close(); } catch (e) {} AUD = null; }
+  function audStart(slug) {
+    audStop();
+    var a = AUD = {slug: slug, t0: Date.now(), who: new Map(), viewers: null, tries: 0, dead: false, ws: null};
+    function paint() {
+      var box = document.getElementById('aud'); if (!box || a.dead) return;
+      var cut = Date.now() - 600000; a.who.forEach(function (t, id) { if (t < cut) a.who.delete(id); });
+      var v = a.last = verdict(a.viewers, a.who.size, (Date.now() - a.t0) / 60000);
+      box.dataset.l = v.l; box.querySelector('b').textContent = v.t; box.querySelector('.t span').textContent = v.s;
+      var short = {ok: 'Actif', calm: 'Calme', low: 'Peu actif', wait: 'Mesure…', na: 'n/d'}[v.l];
+      Array.prototype.forEach.call(document.querySelectorAll('.achip'), function (c) { c.dataset.l = v.l; c.querySelector('span').textContent = short; });
+    }
+    function connect() {
+      if (a.dead || document.hidden) return;
+      fetch('/api/v2/channels/' + encodeURIComponent(slug), {credentials: 'include'}).then(function (r) { return r.json(); }).then(function (j) {
+        if (a.dead) return;
+        var l = j.livestream, n = l && (l.viewer_count != null ? l.viewer_count : l.viewers); a.viewers = typeof n === 'number' ? n : (/^\d+$/.test(String(n)) ? +n : null);
+        paint();
+        if (a.ws || !j.chatroom || !j.chatroom.id) return;
+        var room = j.chatroom.id;
+        return fetch('https://web.kick.com/api/v1/realtime/channels/' + j.id + '/chat/connection', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json', Accept: 'application/json'},
+          body: JSON.stringify({client: {id: (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()), type: 'web'}, capabilities: {accepted_providers: [{provider: 'pusher'}]}})})
+          .then(function (r) { return r.json(); }).then(function (c) {
+            var cs = c.data && c.data.connections, cn = Array.isArray(cs) && cs.find(function (x) { return x && x.credentials; }), cr = cn && cn.credentials;
+            if (a.dead || !cr || !/^[a-z0-9-]{1,32}$/i.test(cr.cluster) || !/^[a-z0-9]{1,128}$/i.test(cr.app_key)) return;
+            var ws = a.ws = new WebSocket('wss://ws-' + cr.cluster + '.pusher.com/app/' + cr.app_key + '?protocol=7&client=js&version=8.4.0&flash=false');
+            ws.onmessage = function (e) {
+              var f; try { f = JSON.parse(e.data); } catch (x) { return; }
+              if (f.event === 'pusher:connection_established') { ws.send(JSON.stringify({event: 'pusher:subscribe', data: {auth: '', channel: 'chatrooms.' + room + '.v2'}})); return; }
+              if (f.event === 'pusher:ping') { ws.send(JSON.stringify({event: 'pusher:pong', data: {}})); return; }
+              if (!/ChatMessageEvent$/.test(f.event || '')) return;
+              var d; try { d = typeof f.data === 'string' ? JSON.parse(f.data) : f.data; } catch (x) { return; }
+              var id = d && d.sender && d.sender.id; if (id != null) { a.who.set(String(id), Date.now()); a.tries = 0; if (!a.pt) a.pt = setTimeout(function () { a.pt = 0; paint(); }, 1000); }
+            };
+            ws.onclose = function () { a.ws = null; if (!a.dead && ++a.tries < 6) a.retry = setTimeout(connect, 4000 * a.tries); };
+            ws.onerror = function () { try { ws.close(); } catch (x) {} };
+          });
+      }).catch(function () { if (!a.dead && ++a.tries < 6) a.retry = setTimeout(connect, 4000 * a.tries); });
+    }
+    connect(); a.timer = setInterval(function () { if (document.hidden) return; if (!a.ws) connect(); else fetch('/api/v2/channels/' + encodeURIComponent(slug), {credentials: 'include'}).then(function (r) { return r.json(); }).then(function (j) { var l = j.livestream; if (l && a && !a.dead) { var n = l.viewer_count != null ? l.viewer_count : l.viewers; a.viewers = typeof n === 'number' ? n : a.viewers; } }).catch(function () {}); paint(); }, 5000);
+  }
+  document.addEventListener('visibilitychange', function () { if (AUD && !AUD.dead) { if (document.hidden) { try { AUD.ws && AUD.ws.close(); } catch (e) {} } else if (!AUD.ws) { var s = AUD.slug; audStart(s); } } });
+  function ensureAudience() {
+    var pl = view().querySelector('.pl[data-s]'), info = $('info');
+    if (!pl || !info || pl.dataset.m) { if (AUD) audStop(); return; }   // pas sur la page d'un live (ou sur une rediffusion)
+    if (!$('aud')) {
+      var box = document.createElement('div'); box.id = 'aud'; box.className = 'aud'; box.dataset.l = 'wait';
+      box.innerHTML = '<span class="d"></span><div class="t"><b>Indice d’audience</b><span>Mesure en cours…</span></div><button aria-label="Comment ça marche ?">ⓘ</button>';
+      info.parentNode.insertBefore(box, info.nextSibling);
+      box.querySelector('button').onclick = audSheet;
+    }
+    if (!AUD || AUD.slug !== pl.dataset.s) audStart(pl.dataset.s);
+  }
+  function audSheet() {
+    tap(); var o = document.createElement('div'), last = AUD && AUD.last; o.id = 'bko';
+        o.innerHTML = '<div class="bks"><b>Indice d’audience</b>' + (last ? '<div style="color:#fff;font-weight:700">' + esc(last.t) + '<br><span style="font-weight:400;color:var(--m)">' + esc(last.s) + '</span></div>' : '') + '<div>Kick n’indique pas combien de spectateurs sont des bots. Cet indice compare le nombre de personnes qui <b style="display:inline;font-size:inherit">écrivent dans le chat</b> (sur les 10 dernières minutes) au nombre de spectateurs affichés.</div><div>Un chat très silencieux peut venir d’un stream calme, d’un chat réservé aux abonnés ou de faux spectateurs : <b style="display:inline;font-size:inherit">c’est une estimation, pas une preuve</b>. La mesure devient plus fiable après quelques minutes.</div><button class="btn" id="audok">Compris</button></div>';
+    document.body.appendChild(o); o.onclick = function (e) { if (e.target === o) o.remove(); }; $('audok').onclick = function () { o.remove(); };
   }
 
   // ---------- mise à jour à chaque changement de l'écran
@@ -1906,7 +1999,7 @@ html.kb nav,html.kb #totop{display:none}
     var tabs = H.style.display === 'none' && !B.classList.contains('cv') && !B.classList.contains('pip');
     B.classList.toggle('tabs-on', tabs);
     if (!tabs) bar.classList.remove('hide');
-    syncMulti(); ensureQuick(); ensureRecent(); ensureSkeleton(); ensureSearch(); ensureAppearance(); ensureChat();
+    syncMulti(); ensureQuick(); ensureRecent(); ensureSkeleton(); ensureSearch(); ensureAppearance(); ensureChat(); ensureAudience();
   }
   function schedule() { if (!pend) pend = requestAnimationFrame(refresh); }
   new MutationObserver(schedule).observe(B, {childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'], characterData: true});

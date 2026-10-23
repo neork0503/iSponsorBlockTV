@@ -28,6 +28,9 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Chat d'un live** : barre d'outils (A−/A+, recharger, masquer en grand écran), écran de chargement, message d'erreur avec « Réessayer » (chat vide ou page de vérification), hauteur qui suit le clavier (`dvh`). En **portrait**, la page remonte pour que le chat remplisse tout le reste de l'écran (la zone de saisie reste visible). En **paysage sur téléphone**, vidéo à gauche et chat à droite (comme sur tablette).
 - Messages d'état de l'accueil (suivis indisponibles, aucun favori…) : petites cartes sobres.
 
+## Indice d'audience (bots ?)
+Kick **ne fournit pas** de détection de bots ni de « vrais spectateurs ». L'appli affiche donc un **indice** sur la page d'un live (encadré sous les infos + pastille « Actif / Calme / Peu actif » dans la barre du chat) : elle se connecte au chat du live, compte les **personnes différentes qui écrivent** sur les 10 dernières minutes et les compare au nombre de spectateurs affichés. Le seuil baisse avec la taille de l'audience (les gros lives ont naturellement un chat moins bavard). La mesure prend ~3 min pour s'afficher. **C'est une estimation, pas une preuve** : un stream calme, un chat réservé aux abonnés ou sans chat donnent aussi un faible score. La connexion se ferme en quittant le live et en mettant l'appli en arrière-plan.
+
 ## Onglet Suivis
 Les chaînes suivies **en direct** s'affichent en **cartes** (miniature, spectateurs, durée, catégorie, bouton « + Multi », comme sur l'accueil) au lieu de lignes de texte ; les chaînes hors ligne restent en liste dessous. Les comptes Kick suivis et les favoris de l'appli sont réunis ; une miniature manquante est récupérée automatiquement (mémorisée 5 min). Squelettes pendant le chargement, actualisation automatique toutes les 30 s.
 
