@@ -1,7 +1,8 @@
 import zipfile,sys
 src,dst,assets=sys.argv[1:4]
 zi=zipfile.ZipFile(src)
-rep={'assets/home.html':assets+'/home.html','assets/player.html':assets+'/player.html'}
+import os
+rep={'assets/'+n:assets+'/'+n for n in ('home.html','player.html','mix.html') if os.path.exists(assets+'/'+n)}
 with zipfile.ZipFile(dst,'w') as zo:
     for it in zi.infolist():
         if it.filename.startswith('META-INF/'): continue
