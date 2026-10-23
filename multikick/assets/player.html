@@ -1,0 +1,402 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<style>
+html,body{touch-action:none;margin:0;height:100%;background:#000;overflow:hidden}
+video{position:fixed;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#000}
+#s{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;
+justify-content:center;color:#9a9aa6;font:600 14px sans-serif;text-align:center;padding:12px;pointer-events:none}
+#s b{color:#f2f2f5;font-size:17px;display:block;margin-bottom:4px}
+/* commandes de retour en arrière (lecteur plein format, ?ctl=1) */
+#ctl{position:fixed;left:0;right:0;bottom:0;padding:26px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.78));
+color:#fff;font:600 13px sans-serif;opacity:0;pointer-events:none;transition:opacity .25s}
+#ctl.on{opacity:1;pointer-events:auto}
+#quick{display:none;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px}#quick button{border:0;border-radius:16px;padding:9px 12px;min-height:38px;background:#24292ddd;color:white;font:600 12px sans-serif}#quick button[data-action="multi"]{color:#53fc18}
+#sr{display:flex;align-items:center;gap:10px}
+#sk{flex:1;height:28px;accent-color:#53fc18;margin:0}
+#tm{min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+#tm.live{color:#53fc18}
+#bt{display:flex;gap:8px;justify-content:center;margin-top:2px}
+#bt button{border:0;border-radius:18px;background:rgba(255,255,255,.16);color:#fff;font:700 13px sans-serif;padding:9px 14px;min-width:44px}
+#bt button:active{background:rgba(255,255,255,.3)}
+#blive{background:#53fc18!important;color:#000!important}
+#blive.at{background:rgba(255,255,255,.16)!important;color:#53fc18!important}
+#toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font:600 13px sans-serif;
+padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1}
+#zoomreset{display:none;position:fixed;right:10px;top:10px;z-index:8;border:0;border-radius:14px;background:rgba(0,0,0,.65);color:#fff;padding:8px 12px;font:600 12px sans-serif}
+#viewers{display:none;color:#fff;font:700 12px sans-serif;white-space:nowrap;font-variant-numeric:tabular-nums}#viewers.stale{color:#b9bec0}
+/* mobile & tablette : commandes compactes, rien ne se chevauche */
+#ctl{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px));padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+#quick button,#bt button{white-space:nowrap}
+#bt{flex-wrap:wrap;gap:6px}
+#bt button{padding:9px 12px;font-size:12.5px}
+#toast{top:max(12px,env(safe-area-inset-top,0px));max-width:calc(100% - 150px);overflow:hidden;text-overflow:ellipsis}
+#zoomreset{top:max(10px,env(safe-area-inset-top,0px));right:max(10px,env(safe-area-inset-right,0px))}
+@media(max-width:420px){#quick button{padding:8px 10px}#tm{min-width:62px}}
+@media(max-height:430px){#ctl{padding-top:14px}#quick{margin-top:2px}#quick button{min-height:34px;padding:6px 10px}#bt button{padding:6px 12px}}
+</style></head>
+<body>
+<video id="v" muted autoplay playsinline poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+<div id="s"></div>
+<div id="toast"></div>
+
+<button id="zoomreset" aria-label="Revenir au zoom normal">Zoom 1×</button>
+<div id="ctl"><div id="quick"><button data-action="fullscreen">⛶ Plein écran</button><button data-action="multi">+ MultiKick</button><button data-action="choose">Choisir un live</button><button data-action="profile">Profil du créateur</button><button data-action="info">⬇ Infos</button></div><div id="sr"><input id="sk" type="range" min="0" max="1000" value="1000"><span id="viewers" aria-label="Nombre de spectateurs"></span><span id="tm" class="live">EN DIRECT</span></div>
+<div id="bt"><button id="b30">⏪ 30 s</button><button id="bpp">⏸</button><button id="bf">10 s ⏩</button><button id="blive" class="at">● DIRECT</button><button id="bq">⚙ Auto</button></div></div>
+<svg width="0" height="0" style="position:absolute"><filter id="sh"><feConvolveMatrix order="3" kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0" preserveAlpha="true"/></filter></svg>
+<script>
+// on lance la demande d'infos du live tout de suite, pendant que le lecteur se charge
+// Channel metadata is requested by start(), with timeout and cancellation.
+window.__mkApi = null;
+</script>
+<script src="/__mk/hls.light.min.js"></script>
+<script src="/__mk/zoom.js"></script>
+<script src="/__mk/viewers.js"></script>
+<script>
+(function () {
+  var slug = new URLSearchParams(location.search).get('slug') || '';
+  var v = document.getElementById('v'), st = document.getElementById('s');
+  var viewerBadge=document.getElementById('viewers');
+  function liveSince(l){var st=String((l&&l.start_time)||'');var t=Date.parse(st.replace(' ','T')+(/(?:Z|[+-]\d\d:?\d\d)$/i.test(st)?'':'Z'));if(!isFinite(t))return '';var m=Math.max(0,Math.floor((Date.now()-t)/60000)),h=Math.floor(m/60);return h?h+'h'+('0'+(m%60)).slice(-2):m+' min';}
+  function paintViewers(live){
+    viewerBadge.classList.remove('stale');
+    if(!live || media || !wantCtl){viewerBadge.style.display='none';delete viewerBadge.dataset.value;return;}
+    var count=ViewerCount.read(live);viewerBadge.textContent='👁 '+ViewerCount.compact(count)+(liveSince(live)?' · ⏱ '+liveSince(live):'');viewerBadge.dataset.value=count==null?'':String(count);
+    viewerBadge.setAttribute('aria-label',count==null?'Nombre de spectateurs indisponible':count.toLocaleString('fr-FR')+' spectateurs');viewerBadge.title=viewerBadge.getAttribute('aria-label');
+    viewerBadge.style.display='inline';
+  }
+  var zoom=new MKZoomState(), zoomButton=document.getElementById('zoomreset');
+  function applyZoom(){v.style.transformOrigin='0 0';v.style.transform=zoom.css(innerWidth,innerHeight);zoomButton.style.display=(zoom.scale>1.025&&new URLSearchParams(location.search).get('ctl')==='1')?'block':'none';zoomButton.textContent=zoom.scale.toFixed(1).replace('.',',')+'× · Réinitialiser';}
+  function pinch(factor,ox,oy,nx,ny){zoom.pinch(factor,ox,oy,nx,ny);applyZoom();}
+  zoomButton.onclick=function(e){e.stopPropagation();zoom.reset();applyZoom();};
+  var touchPinch=null;
+  function pair(touches){var a=touches[0],b=touches[1];return {x:(a.clientX+b.clientX)/2/Math.max(1,innerWidth),y:(a.clientY+b.clientY)/2/Math.max(1,innerHeight),span:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)};}
+  document.addEventListener('touchstart',function(e){if(e.touches.length===2){touchPinch=pair(e.touches);e.preventDefault();}},{passive:false});
+  document.addEventListener('touchmove',function(e){if(e.touches.length!==2||!touchPinch)return;var next=pair(e.touches);if(touchPinch.span>0)pinch(next.span/touchPinch.span,touchPinch.x,touchPinch.y,next.x,next.y);touchPinch=next;e.preventDefault();},{passive:false});
+  document.addEventListener('touchend',function(e){if(e.touches.length<2)touchPinch=null;});
+  document.addEventListener('touchcancel',function(){touchPinch=null;});
+  window.addEventListener('resize',applyZoom);
+  var S = {mute: true, volume:1, quality: 'auto', fit: 0, enh: 0};
+  var hls = null, timer = null, fails = 0, fatalRetries = 0, requestVersion = 0, pending = null, suspended = false, resumePlayback = false, audioUrl = "";
+
+  function say(t, sub) { st.textContent = ''; if (!t) return; var b=document.createElement('b'); b.textContent=t; st.appendChild(b); st.appendChild(document.createTextNode(sub || '')); }
+  function post(n, a) { try { Android[n](a); } catch (e) {} }
+  function schedule(ms) { clearTimeout(timer); if (!suspended) timer = setTimeout(start, ms); }
+  function playMedia() { if (suspended || userPaused) return; var p=v.play(); if (p && p.catch) p.catch(function () { say('Lecture en pause', 'Touche le lecteur pour reprendre'); }); }
+  function metadata() {
+    if (pending) pending.abort();
+    var controller = new AbortController(); pending=controller;
+    var deadline=setTimeout(function(){controller.abort();},12000);
+    return fetch('/api/v2/channels/'+encodeURIComponent(slug), {credentials:'include', signal:controller.signal}).finally(function(){clearTimeout(deadline);if(pending===controller)pending=null;});
+  }
+  function stop() { if (hls) { try { hls.destroy(); } catch (e) {} hls = null; } }
+
+  // Ne touche la qualité que si elle change vraiment, et sans vider le tampon (loadLevel, pas currentLevel) :
+  // l'ancien code la réappliquait à chaque tap et faisait recharger la vidéo.
+  var qKey = '';
+  function applyQ() {
+    if (!hls || !hls.levels || !hls.levels.length) return;
+    var L = hls.levels, best = -1, smallest = 0;
+    var target = S.quality === 'auto' ? Math.max(160, window.innerHeight * (window.devicePixelRatio || 1) * 1.15) : parseInt(S.quality, 10);
+    if (!isFinite(target)) target=Infinity;
+    for (var i=0;i<L.length;i++) {
+      if (L[i].height < L[smallest].height) smallest=i;
+      if (L[i].height<=target && (best<0 || L[i].height>L[best].height)) best=i;
+    }
+    if (best<0) best=smallest;
+    var key=(S.quality==='auto'?'a':'f')+best;
+    if(qKey===key)return; qKey=key;
+    // autoLevelCapping uses an index and expects sorted renditions. For unusual
+    // ordering, leave ABR uncapped rather than accidentally excluding low levels.
+    var sorted=L.every(function(l,i){return !i || L[i-1].height<=l.height;});
+    hls.autoLevelCapping=S.quality==='auto'&&sorted?best:-1;
+    hls.loadLevel=S.quality==='auto'?-1:best;
+  }
+
+  function applyFit() {
+    var vw = v.videoWidth, vh = v.videoHeight;
+    var lim = parseFloat(S.fit) || 0;
+    var contain = true;
+    if (lim && vw && vh) {
+      var qa = (window.innerWidth / window.innerHeight) / (vw / vh);
+      var q = Math.max(qa, 1 / qa);
+      contain = q > lim;
+    }
+    v.style.objectFit = contain ? 'contain' : 'cover';
+    // L'image entière garde des bandes noires, sans fond flouté.
+    v.style.backgroundColor='#000';
+  }
+
+  var enhNow = -1;
+  function applyEnh() {
+    var e = parseInt(S.enh, 10) || 0;
+    if (e === enhNow) return;
+    enhNow = e;
+    v.style.filter = e === 0 ? '' : e === 1 ? 'contrast(1.06) saturate(1.12)' : 'url(#sh) contrast(1.08) saturate(1.15)';
+  }
+
+  function reportAudio() {
+    if(!audioUrl)return;
+    try { if(window.BgAudio && BgAudio.remember)BgAudio.remember(JSON.stringify({slug:slug,url:audioUrl,volume:S.volume,paused:suspended?!resumePlayback:v.paused||userPaused,muted:S.mute||v.muted||v.volume===0,position:Math.max(0,Number(v.currentTime)||0),live:!media&&mode==='live'})); } catch(e){}
+  }
+  function applyAll() {
+    applyEnh();
+    if (v.muted !== S.mute) v.muted = S.mute;
+    if(v.volume!==S.volume)v.volume=S.volume;
+    applyQ();
+    applyFit();
+    reportAudio();
+  }
+
+  // vod = true : on lit l'enregistrement du live en cours (retour en arrière) ; back = secondes à reculer depuis le direct
+  function play(url, vod, back) {
+    stop();
+    if (typeof url!=='string' || !/^https:\/\//i.test(url)) { say('Flux indisponible', 'Adresse vidéo absente ou invalide'); return; }
+    audioUrl=url;
+    qKey = '';
+    if (!window.Hls || !Hls.isSupported()) { v.src = url; playMedia(); return; }
+    hls = new Hls(vod ? {
+      enableWorker: true,
+      testBandwidth: false,
+      abrEwmaDefaultEstimate: 2500000,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      backBufferLength: 30
+    } : {
+      enableWorker: true,
+      startFragPrefetch: true,      // télécharge le 1er morceau pendant l'analyse : démarrage plus rapide
+      testBandwidth: false,         // pas de test de débit au départ
+      abrEwmaDefaultEstimate: 2500000,
+      liveSyncDurationCount: 3,
+      maxBufferLength: 10,
+      maxMaxBufferLength: 20,
+      backBufferLength: 4           // moins de mémoire par lecteur quand plusieurs lives tournent
+    });
+    var jumped = false;
+    var instance=hls;
+    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+      if(hls!==instance || suspended)return;
+      applyAll();
+      say('');
+      playMedia();
+    });
+    if (vod) {
+      // dès qu'on connaît la durée de l'enregistrement, on se place « back » secondes avant la fin
+      hls.on(Hls.Events.LEVEL_LOADED, function (e, d) {
+        if (jumped || !d || !d.details) return;
+        jumped = true;
+        v.currentTime = Math.max(0, d.details.totalduration - back);
+      });
+    }
+    hls.on(Hls.Events.ERROR, function (e, d) {
+      if (!d || !d.fatal || hls!==instance || suspended) return;
+      if (vod) { toast('Retour en arrière indisponible, retour au direct'); goLive(); return; }
+      stop();
+      if(++fatalRetries>5){say('Lecture interrompue', 'Recharge le live pour réessayer');post('fail','HLS retry limit');return;}
+      schedule(Math.min(30000,1000*Math.pow(2,fatalRetries-1)));
+    });
+    hls.loadSource(url);
+    hls.attachMedia(v);
+  }
+
+  // ---------- retour en arrière : l'enregistrement du live en cours contient tout depuis le début du stream
+  var mode = 'live', liveUrl = '', dvr = null, dvrTried = false, userPaused = false;
+  function toast(t) {
+    var e = document.getElementById('toast'); e.textContent = t; e.classList.add('on');
+    clearTimeout(toast.t); toast.t = setTimeout(function () { e.classList.remove('on'); }, 2600);
+  }
+  function findDvr() {
+    if (dvr || dvrTried || !slug) return Promise.resolve(dvr);
+    dvrTried = true;
+    return fetch('/api/v2/channels/' + encodeURIComponent(slug) + '/videos', {credentials: 'include'})
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (a) {
+        a = Array.isArray(a) ? a : (a.data || []);
+        var x = a.filter(function (y) { return y.is_live && y.source && !(y.video && y.video.is_private); })[0];
+        if (x) { var stamp=String(x.start_time||'').replace(' ','T'); if(!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(stamp))stamp+='Z'; dvr = {src:x.source,start:Date.parse(stamp)}; }
+        return dvr;
+      }).catch(function () { dvrTried = false; return null; });
+  }
+  function total() {
+    if (mode === 'dvr' && isFinite(v.duration)) return v.duration;
+    return dvr && isFinite(dvr.start) ? Math.max(0, (Date.now() - dvr.start) / 1000) : 0;
+  }
+  function behind() { return mode === 'dvr' && isFinite(v.duration) ? Math.max(0, v.duration - v.currentTime) : 0; }
+  function goLive() {
+    if (!liveUrl) return;
+    mode = 'live'; userPaused = false;
+    play(liveUrl, false);
+    paint();
+  }
+  function rewind(sec) {
+    if (media) return;
+    findDvr().then(function (d) {
+      if (!d || !isFinite(d.start)) { toast('Retour en arrière indisponible pour ce live'); return; }
+      if (mode === 'dvr') {
+        var t = v.currentTime - sec;
+        if (t < 0) t = 0;
+        v.currentTime = t;
+      } else {
+        mode = 'dvr'; userPaused = false;
+        play(d.src, true, sec + 12);   // l'enregistrement a ~10 s de retard sur le direct
+        toast('−' + fmtT(sec));
+      }
+      paint();
+    });
+  }
+  function forward(sec) {
+    if (mode !== 'dvr') return;
+    var left = v.duration - v.currentTime;
+    if (left - sec < 20) { goLive(); return; }
+    v.currentTime += sec;
+    paint();
+  }
+  function fmtT(s) {
+    s = Math.round(s); var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), q = s % 60;
+    return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (q < 10 ? '0' : '') + q;
+  }
+  var ctl = document.getElementById('ctl'), sk = document.getElementById('sk'), tm = document.getElementById('tm'),
+      bpp = document.getElementById('bpp'), blive = document.getElementById('blive'), dragging = false, hideT = null;
+  var wantCtl = new URLSearchParams(location.search).get('ctl') === '1' && !new URLSearchParams(location.search).get('src');
+  function paint() {
+    if (!wantCtl) return;
+    var live = mode === 'live';
+    blive.classList.toggle('at', live);
+    tm.classList.toggle('live', live);
+    tm.textContent = live ? 'EN DIRECT' : '−' + fmtT(behind());
+    bpp.textContent = v.paused ? '▶' : '⏸';
+    if (!dragging) { var t = total(); sk.value = live || !t ? 1000 : Math.round(1000 * v.currentTime / t); }
+  }
+  function showCtl() {
+    ctl.classList.add('on'); paint(); findDvr();
+    clearTimeout(hideT); hideT = setTimeout(function () { ctl.classList.remove('on'); }, 4500);
+  }
+  if (wantCtl) {
+    var quick=document.getElementById('quick');
+    if(parent!==window){quick.style.display='flex';quick.querySelectorAll('[data-action]').forEach(function(button){button.onclick=function(e){e.stopPropagation();parent.postMessage({type:'mk-player-action',action:button.dataset.action},location.origin);};});}
+    var swipeStart=null;
+    document.addEventListener('touchstart',function(e){swipeStart=e.touches.length===1&&!ctl.contains(e.target)?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
+    document.addEventListener('touchend',function(e){if(swipeStart&&e.changedTouches.length){var t=e.changedTouches[0];if(Math.abs(t.clientY-swipeStart.y)>25&&Math.abs(t.clientX-swipeStart.x)<80){showCtl();if(parent!==window)parent.postMessage({type:'mk-scroll',dir:t.clientY<swipeStart.y?1:-1},location.origin);}}swipeStart=null;},{passive:true});
+    document.addEventListener('touchcancel',function(){swipeStart=null;});
+    document.addEventListener('click', function (e) {
+      if (ctl.contains(e.target)) { clearTimeout(hideT); hideT = setTimeout(function () { ctl.classList.remove('on'); }, 4500); return; }
+      if (ctl.classList.contains('on')) ctl.classList.remove('on'); else showCtl();
+    });
+    document.getElementById('b30').onclick = function () { rewind(30); };
+    var bq=document.getElementById('bq'),QL=['auto','1080','720','480','360'];
+    try{var q0=localStorage.getItem('mk_q1');if(q0&&QL.indexOf(q0)>=0)S.quality=q0;}catch(e){}
+    function qLabel(){bq.textContent='⚙ '+(S.quality==='auto'?'Auto':S.quality+'p');}
+    qLabel();
+    bq.onclick=function(){S.quality=QL[(QL.indexOf(S.quality)+1)%QL.length];try{localStorage.setItem('mk_q1',S.quality);}catch(e){}qLabel();applyAll();toast('Qualité : '+(S.quality==='auto'?'Auto':S.quality+'p'));if(parent!==window)parent.postMessage({type:'mk-quality',q:S.quality},location.origin);};
+    document.getElementById('bf').onclick = function () { forward(10); };
+    blive.onclick = function () { if (mode === 'dvr') goLive(); };
+    bpp.onclick = function () {
+      if (v.paused) { userPaused = false; playMedia(); } else { userPaused = true; v.pause(); }
+      paint();
+    };
+    sk.addEventListener('input', function () {
+      dragging = true;
+      var t = total(); if (!t) return;
+      tm.classList.remove('live'); tm.textContent = '−' + fmtT(t - t * sk.value / 1000);
+    });
+    sk.addEventListener('change', function () {
+      dragging = false;
+      var t = total(); if (!t) { paint(); return; }
+      var back = t - t * sk.value / 1000;
+      if (back < 15) { if (mode === 'dvr') goLive(); else paint(); return; }
+      if (mode === 'dvr') { v.currentTime = Math.min(v.duration - 1, t * sk.value / 1000); paint(); }
+      else rewind(back);
+    });
+    setInterval(function () { if (ctl.classList.contains('on')) paint(); }, 500);
+    v.addEventListener('ended', function () { if (mode === 'dvr') goLive(); });
+  }
+
+  // rediffusion ou clip : on lit directement la vidéo, avec la barre de progression
+  var media = new URLSearchParams(location.search).get('src');
+  async function start() {
+    if(suspended)return;
+    clearTimeout(timer);
+    var version=++requestVersion;
+    if (media) {
+      window.__mkApi = null;
+      v.controls = true;
+      if (!hls) play(media);
+      return;
+    }
+    try {
+      var r = await metadata();
+      if(version!==requestVersion || suspended)return;
+      window.__mkApi = null;
+      if (!r.ok) throw new Error('http ' + r.status);
+      var j = await r.json();
+      if(version!==requestVersion || suspended)return;
+      if(!j||!Object.prototype.hasOwnProperty.call(j,'livestream')||(j.livestream!==null&&typeof j.livestream!=='object'))throw new Error('Métadonnées du live incomplètes');
+      fails = 0;
+      var live = !!j.livestream;
+      var currentViewers=ViewerCount.read(j.livestream);paintViewers(j.livestream);
+      var name = (j.user && j.user.username) || slug;
+      post('info', JSON.stringify({live: live, viewers: live&&currentViewers!==null?currentViewers:-1,
+        title: live ? (j.livestream.session_title || '') : '', name: name}));
+      if (!live) {
+        stop(); liveUrl=''; v.removeAttribute('src'); v.load();
+        say(name + ' est hors ligne', 'Reconnexion automatique…');
+        schedule(30000);
+        return;
+      }
+      liveUrl = j.playback_url || liveUrl;
+      if (!hls && v.src!==liveUrl) play(liveUrl); else if(!hls && window.Hls && Hls.isSupported())play(liveUrl);
+      if (wantCtl) findDvr();
+      schedule(30000);
+    } catch (e) {
+      if(version!==requestVersion || suspended)return;
+      fails++;if(viewerBadge.style.display==='inline'){viewerBadge.classList.add('stale');viewerBadge.title='Dernière valeur reçue · actualisation en attente';}
+      if (fails >= 3) { say('Connexion impossible', 'Recharge le live pour réessayer');post('fail', String(e)); return; }
+      schedule(2500);
+    }
+  }
+
+  window.mk = {
+    volume:function(n){if(typeof n!=='number'||!Number.isFinite(n))return;S.volume=Math.max(0,Math.min(1,n));applyAll();},
+    set: function (o) { for (var k in o) S[k] = o[k]; applyAll(); },
+    reload: function () { clearTimeout(timer); requestVersion++; if(pending)pending.abort(); fails=0; fatalRetries=0; mode='live'; userPaused=false; stop(); say('Chargement…'); start(); },
+    pause:function(on){userPaused=typeof on==='boolean'?on:!v.paused;if(userPaused){resumePlayback=false;v.pause();}else if(!suspended)playMedia();paint();reportAudio();},
+    isPaused:function(){return v.paused;},
+    forward:function(s){forward(s);},
+    rewind: function (s) { rewind(s); },     // appelé par l'app (menu d'un live de la grille)
+    live: function () { if (mode === 'dvr') goLive(); },
+    state: function () { return mode; },
+    pinch: pinch,
+    resetZoom: function(){zoom.reset();applyZoom();},
+    zoomState: function(){return {scale:zoom.scale,x:zoom.x,y:zoom.y};},
+    restoreBackground: function(paused, positions, slugs) { if(Array.isArray(slugs)&&slugs.indexOf(slug)<0)return;userPaused=!!paused;if(userPaused)resumePlayback=false;var at=positions&&positions[slug];if((media||mode==='dvr')&&typeof at==='number'&&isFinite(at)&&at>=0)try{v.currentTime=at;}catch(e){} },
+    suspend: function () { if(suspended)return; suspended=true; resumePlayback=!v.paused&&!userPaused; clearTimeout(timer); requestVersion++; if(pending)pending.abort(); if(hls)hls.stopLoad(); v.pause(); },
+    resume: function () { if(!suspended)return; suspended=false; if(hls)hls.startLoad(-1); if(resumePlayback)playMedia(); resumePlayback=false; if(!media)schedule(hls?1000:0); }
+
+  };
+
+  var firstPlay = true;
+  v.addEventListener('playing', function () {
+    fatalRetries=0;reportAudio();
+    if (firstPlay) { firstPlay = false; console.log('MKPLAY ' + slug + ' ' + Math.round(performance.now())); }
+  });
+  v.addEventListener('waiting', function () { if (!firstPlay) console.log('MKWAIT ' + slug); });
+  v.addEventListener('loadedmetadata', applyFit);
+  v.addEventListener('resize', applyFit);
+  var rz = null;
+  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { applyQ(); applyFit(); }, 400); });
+  // Never force play() from a timer: that used to cancel native control pauses.
+  v.addEventListener('pause',function(){if(!suspended && v.controls)userPaused=true;});
+  v.addEventListener('play',function(){if(!suspended)userPaused=false;});
+  v.addEventListener('volumechange',reportAudio);
+  v.addEventListener('pause',reportAudio);
+  setInterval(reportAudio,2000);
+  document.addEventListener('visibilitychange',function(){if(document.hidden)window.mk.suspend();else window.mk.resume();});
+  window.addEventListener('pagehide',function(){window.mk.suspend();stop();});
+
+
+  say('Chargement…');
+  start();
+})();
+</script>
+</body></html>
