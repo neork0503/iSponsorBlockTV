@@ -18,3 +18,6 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 
 `Kick-v115-ui.apk` est signé avec une **nouvelle clé** (l'originale n'est pas disponible) :
 désinstalle l'ancienne version avant d'installer celle-ci (Android refuse une mise à jour signée avec une autre clé).
+
+## Variante « côte à côte »
+`Kick-v115-ui-cote-a-cote.apk` a un autre identifiant (`app.multikick.kic2`, nom « Kic2 ») : elle s'installe **à côté** de l'appli d'origine, sans désinstallation ni conflit de signature (mais sans reprendre ses réglages). Générée avec `tools/rename_package.py`.
