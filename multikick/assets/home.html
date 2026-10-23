@@ -672,6 +672,7 @@ html.kb nav,html.kb #totop{display:none}
       meTried=true;me=x;return me;
     }).catch(function(e){me=null;meTried=false;meError=/http (401|403)/.test(e.message)?'auth':'network';return null;});
   }
+  function thumbOf(l){var t=l&&l.thumbnail;return typeof t==='string'?t:(t&&(t.url||t.src))||'';}
   function followChannel(c) {
     c=c.channel||c;var u=c.user||{},l=c.livestream;
     var slug=c.channel_slug||c.slug||u.username||c.user_username;
@@ -683,7 +684,8 @@ html.kb nav,html.kb #totop{display:none}
     return {slug:slug.toLowerCase(),name:u.username||c.user_username||c.username||slug,
       live:hasStream?!!l:explicit,unknown:!hasStream&&!explicit&&!negative,
       viewers:ViewerCount.read(l||c),pic:u.profile_pic||u.profilepic||c.profile_picture||c.profilepic||'',
-      title:(l&&l.session_title)||c.session_title||'',cat:c.category_name||''};
+      title:(l&&l.session_title)||c.session_title||'',cat:(l&&l.categories&&l.categories[0]&&l.categories[0].name)||c.category_name||'',
+      thumb:thumbOf(l),start:(l&&l.start_time)||c.start_time||''};
   }
   function followed() {
     var all=[],seen=new Set();
@@ -710,7 +712,21 @@ html.kb nav,html.kb #totop{display:none}
       return Promise.all(Array.from({length:Math.min(4,uncertain.length)},worker)).then(function(){return channels;});
     });
   }
-  function followingData(){
+  var liveExtra={};
+  function enrichLive(channels){   // miniature / catégorie / heure de début manquantes sur les chaînes en direct
+    var todo=channels.filter(function(c){return c.live&&!c.unknown&&!c.thumb;}).slice(0,16),i=0;
+    todo.forEach(function(c){var k=liveExtra[c.slug];if(k&&Date.now()-k.t<300000)Object.assign(c,k.v);});
+    todo=todo.filter(function(c){return !c.thumb;});
+    function worker(){var c=todo[i++];if(!c)return Promise.resolve();
+      return json('/api/v2/channels/'+encodeURIComponent(c.slug)).then(function(j){var l=j&&j.livestream;if(!l)return;
+        var v={thumb:thumbOf(l),start:l.start_time||c.start||'',cat:(l.categories&&l.categories[0]&&l.categories[0].name)||c.cat||'',title:c.title||l.session_title||''};
+        liveExtra[c.slug]={t:Date.now(),v:v};Object.assign(c,v);}).then(worker);}
+    return Promise.all(Array.from({length:Math.min(4,todo.length)},worker)).then(function(){return channels;});
+  }
+  function liveCardOf(c){
+    return liveCard({channel:{slug:c.slug,user:{username:c.name,profilepic:c.pic}},categories:c.cat?[{name:c.cat}]:[],session_title:c.title,thumbnail:c.thumb?{url:c.thumb}:null,viewer_count:c.viewers,start_time:c.start});
+  }
+  function followingData(withThumbs){
     return Promise.all([loadMe().then(function(){
       if(!me)return {channels:[],error:meError};
       return followed().then(function(a){return {channels:a,error:''};}).catch(function(e){return {channels:[],error:/http (401|403)/.test(e.message)?'auth':'network'};});
@@ -719,21 +735,22 @@ html.kb nav,html.kb #totop{display:none}
         if(isBlocked(c.slug))return;var key=c.slug.toLowerCase(),old=map.get(key);
         if(!old||(!c.unknown)||old.unknown)map.set(key,c);
       });
-      return {channels:Array.from(map.values()),error:r[0].error};
+      var list=Array.from(map.values());
+      return (withThumbs?enrichLive(list):Promise.resolve(list)).then(function(all){return {channels:all,error:r[0].error};});
     });
   }
   function watchFollowing(target,homeOnly){
     clearTimeout(followingTimer);var busy=false;
     function refresh(){
       if(!target.isConnected||busy)return;clearTimeout(followingTimer);busy=true;
-      followingData().then(function(result){
+      followingData(!homeOnly).then(function(result){
         if(!target.isConnected)return;
         var all=result.channels,live=all.filter(function(c){return c.live&&!c.unknown;}).sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
         var off=all.filter(function(c){return !c.live&&!c.unknown;}),unknown=all.filter(function(c){return c.unknown;});
         var html='<h2>Suivis'+(homeOnly?' en direct':'')+' <button class="btn2" data-refresh>Actualiser</button></h2>';
         if(result.error==='auth')html+='<div class="msg" style="padding:8px 12px">Connecte-toi pour retrouver tes suivis Kick. <button class="btn2" data-login>Connexion</button></div>';
         else if(result.error)html+='<div class="msg" style="padding:8px 12px">Suivis Kick indisponibles. Réessaie avec « Actualiser ». Tes favoris restent affichés.</div>';
-        if(live.length)html+=(homeOnly?'<div class="ppl">'+live.map(ppHtml).join(''):'<h2>En direct <small>'+live.length+'</small></h2><div class="list">'+live.map(liRow).join(''))+'</div>';
+        if(live.length)html+=(homeOnly?'<div class="ppl">'+live.map(ppHtml).join('')+'</div>':'<h2>En direct <small>'+live.length+'</small></h2><div class="grid">'+live.map(liveCardOf).join('')+'</div>');
         else html+='<div class="msg" style="padding:8px 12px">'+(result.error?'Aucun favori confirmé en direct.':'Aucune chaîne suivie en direct.')+'</div>';
         if(!homeOnly&&off.length)html+='<h2>Hors ligne <small>'+off.length+'</small></h2><div class="list">'+off.map(liRow).join('')+'</div>';
         if(unknown.length)html+='<h2>État indisponible <small>'+unknown.length+'</small></h2><div class="list">'+unknown.map(liRow).join('')+'</div>';
@@ -742,7 +759,7 @@ html.kb nav,html.kb #totop{display:none}
         var login=target.querySelector('[data-login]');if(login)login.onclick=showLogin;
       }).finally(function(){busy=false;if(target.isConnected)followingTimer=setTimeout(function(){if(!document.hidden)refresh();else followingTimer=setTimeout(refresh,30000);},30000);});
     }
-    target.innerHTML='<div class="msg">Chargement des suivis…</div>';refresh();
+    target.innerHTML=homeOnly?'<div class="msg">Chargement des suivis…</div>':'<h2>Suivis</h2><div class="grid">'+new Array(5).join('<div class="skc"><div class="sk skt"></div><div class="skr"><div class="sk"></div><div><div class="sk skl"></div><div class="sk skl"></div></div></div></div>')+'</div>';refresh();
   }
   // chaînes suivies dans l'app (marche sans compte) : état en direct récupéré chaîne par chaîne
   function favoriteIds() {
@@ -750,7 +767,7 @@ html.kb nav,html.kb #totop{display:none}
   }
   function appFollows() {
     var favs=favoriteIds(),result=new Array(favs.length),next=0;
-    function worker(){var index=next++;if(index>=favs.length)return Promise.resolve();var slug=favs[index];return json('/api/v2/channels/'+encodeURIComponent(slug)).then(function(j){var u=j.user||{},l=j.livestream;result[index]={slug:slug,name:u.username||slug,pic:u.profile_pic||u.profilepic||'',live:!!l,viewers:l?l.viewer_count:0,title:l?l.session_title:'',cat:'',unknown:!Object.prototype.hasOwnProperty.call(j,'livestream')};return worker();});}
+    function worker(){var index=next++;if(index>=favs.length)return Promise.resolve();var slug=favs[index];return json('/api/v2/channels/'+encodeURIComponent(slug)).then(function(j){var u=j.user||{},l=j.livestream;result[index]={slug:slug,name:u.username||slug,pic:u.profile_pic||u.profilepic||'',live:!!l,viewers:l?l.viewer_count:0,title:l?l.session_title:'',cat:(l&&l.categories&&l.categories[0]&&l.categories[0].name)||'',thumb:thumbOf(l),start:(l&&l.start_time)||'',unknown:!Object.prototype.hasOwnProperty.call(j,'livestream')};return worker();});}
     return Promise.all(Array.from({length:Math.min(4,favs.length)},worker)).then(function(){return result;});
   }
   function viewFavorites() {

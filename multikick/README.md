@@ -28,6 +28,9 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Chat d'un live** : barre d'outils (A−/A+, recharger, masquer en grand écran), écran de chargement, message d'erreur avec « Réessayer » (chat vide ou page de vérification), hauteur qui suit le clavier (`dvh`). En **portrait**, la page remonte pour que le chat remplisse tout le reste de l'écran (la zone de saisie reste visible). En **paysage sur téléphone**, vidéo à gauche et chat à droite (comme sur tablette).
 - Messages d'état de l'accueil (suivis indisponibles, aucun favori…) : petites cartes sobres.
 
+## Onglet Suivis
+Les chaînes suivies **en direct** s'affichent en **cartes** (miniature, spectateurs, durée, catégorie, bouton « + Multi », comme sur l'accueil) au lieu de lignes de texte ; les chaînes hors ligne restent en liste dessous. Les comptes Kick suivis et les favoris de l'appli sont réunis ; une miniature manquante est récupérée automatiquement (mémorisée 5 min). Squelettes pendant le chargement, actualisation automatique toutes les 30 s.
+
 ## Réduire un live (mini-lecteur) et PiP
 - **Glisser le live vers le bas** (ou toucher le chevron ⌄ en haut à gauche, ou « ⌄ Réduire » dans le menu ⋯) : le live se réduit en **mini-lecteur** et on retrouve l'accueil pour **choisir un autre live**. Glisser vers le haut affiche toujours les infos.
 - **Mini-lecteur et image dans l'image (PiP)** : le lecteur n'affiche plus ses commandes ni ses textes dans une fenêtre minuscule (ils devenaient énormes) ; les petits boutons du mini-lecteur sont proportionnés.
