@@ -286,8 +286,8 @@ h2>span,h2>:first-child:not(a):not(button){min-width:0}
 #mini-channel{bottom:calc(var(--nav) + var(--sab) + 12px);width:min(46vw,320px)}
 :where(html.land) #mini-channel{bottom:calc(var(--sab) + 12px);width:min(34vw,300px)}
 #mini-channel[data-positioned]{bottom:auto}
-.mini-tools button{min-height:44px}
-.mini-actions button{width:40px;height:40px}
+.mini-tools button{min-height:30px;font-size:10.5px}
+.mini-actions button{width:30px;height:30px;font-size:16px}
 /* fenêtres du bas : au-dessus de la barre et du rail */
 #bko{z-index:80}
 .bks{padding-bottom:calc(26px + var(--sab))}
@@ -1537,6 +1537,7 @@ html.kb nav,html.kb #totop{display:none}
     var slug=pl.dataset.s,media=pl.dataset.m;
     if(action==='multi'){native('add',slug);native('openMulti');}
     else if(action==='back')history.back();
+    else if(action==='minimize'){if(host!==miniChannel)go('#/');}   // le live se réduit en mini-lecteur et on retrouve la liste pour en choisir un autre
     else if(action==='choose')go('#/browse');
     else if(action==='profile')go('#/creator/'+encodeURIComponent(slug));
     else if(action==='fullscreen'){
@@ -1612,7 +1613,11 @@ html.kb nav,html.kb #totop{display:none}
 
   // appelé par l'app : lives déjà dans le multi
   window.home = {
-    pip: function (on) { document.body.classList.toggle('pip', !!on);if(!on)placeMini(); },
+    pip: function (on) {
+      document.body.classList.toggle('pip', !!on);if(!on)placeMini();
+      // le lecteur masque ses commandes quand l'appli est en image dans l'image (fenêtre minuscule)
+      Array.prototype.forEach.call(document.querySelectorAll('.pl iframe'),function(f){try{f.contentWindow.postMessage({type:'mk-compact',on:!!on},location.origin);}catch(e){}});
+    },
     loginState: function (msg) {
       if ($('lgm')) { $('lgm').style.color = '#ff6b6b'; $('lgm').textContent = msg; }
       if ($('lgb')) { $('lgb').disabled = false; $('lgb').style.opacity = 1; }

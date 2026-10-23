@@ -58,6 +58,18 @@ padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-ev
 #ctl.menu #quick button:active{background:rgba(255,255,255,.22)}
 @media(min-width:560px){#bt{order:1;flex:0 0 auto;justify-content:flex-start}#sr{order:2;flex:1 1 0}#ctl{flex-wrap:nowrap;padding-top:22px}}
 @media(max-height:430px){#ctl{padding-top:16px}#bt button,#bm{height:36px}}
+
+/* bouton « réduire » : en haut à gauche, avec les commandes */
+#bmin{position:fixed;left:max(10px,env(safe-area-inset-left,0px));top:max(10px,env(safe-area-inset-top,0px));z-index:8;width:42px;height:42px;border:0;border-radius:21px;background:rgba(0,0,0,.55);color:#fff;font-size:24px;line-height:1;padding:0 0 6px;display:none;opacity:0;transition:opacity .25s}
+#ctl.hasq.on~#bmin{display:block;opacity:1}
+/* petit cadre (mini-lecteur de l'appli, image dans l'image du système) : aucune commande, textes proportionnés */
+html.compact #ctl,html.compact #bmin,html.compact #zoomreset,html.compact #viewers{display:none!important}
+html.compact #s{font-size:11px;padding:6px}html.compact #s b{font-size:13px;margin-bottom:2px}
+@media(max-width:340px){
+  #ctl,#bmin,#zoomreset,#viewers{display:none!important}
+  #s{font-size:11px;padding:6px}#s b{font-size:13px;margin-bottom:2px}
+  #toast{font-size:10px;padding:4px 9px;top:6px;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+}
 </style></head>
 <body>
 <video id="v" muted autoplay playsinline poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
@@ -65,8 +77,9 @@ padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-ev
 <div id="toast"></div>
 
 <button id="zoomreset" aria-label="Revenir au zoom normal">Zoom 1×</button>
-<div id="ctl"><div id="quick"><button data-action="back">← Retour</button><button data-action="fullscreen">⛶ Plein écran</button><button data-action="multi">+ Multi</button><button data-action="choose">Choisir un live</button><button data-action="profile">Profil du créateur</button><button data-action="info">⬇ Infos</button></div><div id="sr"><input id="sk" type="range" min="0" max="1000" value="1000"><span id="viewers" aria-label="Nombre de spectateurs"></span><span id="tm" class="live">EN DIRECT</span></div>
+<div id="ctl"><div id="quick"><button data-action="minimize">⌄ Réduire</button><button data-action="fullscreen">⛶ Plein écran</button><button data-action="multi">+ Multi</button><button data-action="choose">Choisir un live</button><button data-action="profile">Profil du créateur</button><button data-action="info">⬇ Infos</button></div><div id="sr"><input id="sk" type="range" min="0" max="1000" value="1000"><span id="viewers" aria-label="Nombre de spectateurs"></span><span id="tm" class="live">EN DIRECT</span></div>
 <div id="bt"><button id="b30" aria-label="Reculer de 30 secondes">⏪ 30</button><button id="bpp" aria-label="Lecture / pause">⏸</button><button id="bf" aria-label="Avancer de 10 secondes">10 ⏩</button><button id="blive" class="at">● DIRECT</button><button id="bq" aria-label="Qualité">⚙ Auto</button></div><button id="bm" aria-label="Plus d'actions" aria-expanded="false">⋯</button></div>
+<button id="bmin" aria-label="Réduire le live en mini-lecteur">⌄</button>
 <svg width="0" height="0" style="position:absolute"><filter id="sh"><feConvolveMatrix order="3" kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0" preserveAlpha="true"/></filter></svg>
 <script>
 // on lance la demande d'infos du live tout de suite, pendant que le lecteur se charge
@@ -80,6 +93,7 @@ window.__mkApi = null;
 (function () {
   var slug = new URLSearchParams(location.search).get('slug') || '';
   var v = document.getElementById('v'), st = document.getElementById('s');
+  window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='mk-compact')document.documentElement.classList.toggle('compact',!!e.data.on);});
   var viewerBadge=document.getElementById('viewers');
   function liveSince(l){var st=String((l&&l.start_time)||'');var t=Date.parse(st.replace(' ','T')+(/(?:Z|[+-]\d\d:?\d\d)$/i.test(st)?'':'Z'));if(!isFinite(t))return '';var m=Math.max(0,Math.floor((Date.now()-t)/60000)),h=Math.floor(m/60);return h?h+'h'+('0'+(m%60)).slice(-2):m+' min';}
   function paintViewers(live){
@@ -299,9 +313,10 @@ window.__mkApi = null;
     var quick=document.getElementById('quick');
     var bm=document.getElementById('bm');bm.onclick=function(e){e.stopPropagation();var o=ctl.classList.toggle('menu');bm.setAttribute('aria-expanded',o);clearTimeout(hideT);hideT=setTimeout(function(){ctl.classList.remove('on','menu');},o?9000:4500);};tm.onclick=function(){if(mode==='dvr')goLive();};if(parent!==window){ctl.classList.add('hasq');quick.querySelectorAll('[data-action]').forEach(function(button){button.onclick=function(e){e.stopPropagation();ctl.classList.remove('menu');parent.postMessage({type:'mk-player-action',action:button.dataset.action},location.origin);};});}
     quick.addEventListener('click',function(e){if(e.target===quick){ctl.classList.remove('menu');bm.setAttribute('aria-expanded','false');}});
+    var bmin=document.getElementById('bmin');bmin.onclick=function(e){e.stopPropagation();if(parent!==window)parent.postMessage({type:'mk-player-action',action:'minimize'},location.origin);};
     var swipeStart=null;
     document.addEventListener('touchstart',function(e){swipeStart=e.touches.length===1&&!ctl.contains(e.target)?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
-    document.addEventListener('touchend',function(e){if(swipeStart&&e.changedTouches.length){var t=e.changedTouches[0];if(Math.abs(t.clientY-swipeStart.y)>25&&Math.abs(t.clientX-swipeStart.x)<80){showCtl();if(parent!==window)parent.postMessage({type:'mk-scroll',dir:t.clientY<swipeStart.y?1:-1},location.origin);}}swipeStart=null;},{passive:true});
+    document.addEventListener('touchend',function(e){if(swipeStart&&e.changedTouches.length){var t=e.changedTouches[0];if(parent!==window&&t.clientY-swipeStart.y>70&&Math.abs(t.clientX-swipeStart.x)<60){swipeStart=null;parent.postMessage({type:'mk-player-action',action:'minimize'},location.origin);return;}if(Math.abs(t.clientY-swipeStart.y)>25&&Math.abs(t.clientX-swipeStart.x)<80){showCtl();if(parent!==window)parent.postMessage({type:'mk-scroll',dir:t.clientY<swipeStart.y?1:-1},location.origin);}}swipeStart=null;},{passive:true});
     document.addEventListener('touchcancel',function(){swipeStart=null;});
     document.addEventListener('click', function (e) {
       if (ctl.contains(e.target)) { clearTimeout(hideT); hideT = setTimeout(function () { ctl.classList.remove('on','menu'); }, 4500); return; }
