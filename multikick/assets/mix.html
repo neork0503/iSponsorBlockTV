@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<style>
+:root{--fs:14px;--g:#53fc18;--bg:#07090b;--card:#10171a;--line:rgba(255,255,255,.08);--m:#8e9ba0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit}
+html,body{margin:0;background:var(--bg);color:#f2f4f5;font:var(--fs)/1.42 system-ui,-apple-system,Roboto,"Segoe UI",sans-serif}
+html{overflow-x:hidden}   /* seulement sur html : sur body aussi, la barre « sticky » ne suivrait plus le défilement */
+body{overscroll-behavior:contain}
+/* barre fixe : une ligne, défile sur le côté ; chaque chaîne du multi est une puce qui sert de filtre */
+#bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(7,9,11,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+#chs{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#chs::-webkit-scrollbar{display:none}
+.ch{flex:none;display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 9px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:#e8eef0;font-weight:700;font-size:12px;line-height:1;white-space:nowrap}
+.ch i{width:8px;height:8px;border-radius:4px;background:var(--c,#888);flex:none}
+.ch[data-st=connecting] i,.ch[data-st=retry] i{animation:bl 1s infinite alternate;background:#ffb347}
+.ch[data-st=fail] i{background:#ff5a5a}
+.ch.off{opacity:.45;text-decoration:line-through}
+@keyframes bl{to{opacity:.25}}
+.tb{flex:none;width:34px;height:32px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:#fff;font-weight:800;font-size:13px;line-height:1;display:grid;place-items:center;padding:0}
+.tb:active{background:#1d2a2f}
+.tb.on{background:rgba(83,252,24,.18);border-color:rgba(83,252,24,.5);color:var(--g)}
+#l{padding:4px 0 70px}
+.m{padding:3px 10px;word-break:break-word;border-radius:0}
+.m.rep{border-left:2px solid rgba(255,255,255,.18);margin-left:8px;padding-left:8px}
+.m.new{animation:in .22s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.t{display:inline-block;font-weight:800;font-size:.72em;padding:1px 6px;border-radius:7px;margin-right:6px;color:#000;vertical-align:1px}
+.bd{display:inline-grid;place-items:center;width:1.15em;height:1.15em;border-radius:.3em;margin-right:4px;font-weight:800;font-size:.66em;line-height:1;color:#000;vertical-align:1px}
+.rp{color:var(--m);font-size:.82em;margin-right:6px}
+.u{font-weight:800}
+.tm{color:#5f6c71;font-size:.74em;margin-right:6px;font-variant-numeric:tabular-nums}
+body:not(.time) .tm{display:none}
+img{height:1.7em;vertical-align:middle;margin:-2px 1px}
+#e{color:var(--m);text-align:center;padding:28px 18px;font-size:.95em}
+#e b{display:block;color:#dfe6e8;font-size:1.05em;margin-bottom:4px}
+#more{position:fixed;left:50%;bottom:14px;transform:translate(-50%,24px);z-index:6;border:0;border-radius:20px;padding:10px 16px;background:linear-gradient(135deg,#6bff2e,#3fd60f);color:#031000;font-weight:800;font-size:13px;line-height:1;box-shadow:0 8px 22px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+#more.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body>
+<div id="bar"><div id="chs" role="tablist" aria-label="Chaînes du multi"></div>
+<button class="tb" id="tt" aria-label="Afficher l'heure" title="Heure">🕘</button>
+<button class="tb" id="fm" aria-label="Texte plus petit">A−</button>
+<button class="tb" id="fp" aria-label="Texte plus grand">A+</button>
+<button class="tb" id="ps" aria-label="Mettre le chat en pause" title="Pause">⏸</button></div>
+<div id="l" aria-live="off"></div>
+<div id="e"><b>Chat du multi</b>Les messages de tous tes lives apparaîtront ici.</div>
+<button id="more"></button>
+<script>
+(function () {
+  var L = document.getElementById('l'), E = document.getElementById('e'), CH = document.getElementById('chs'), MORE = document.getElementById('more'), PS = document.getElementById('ps');
+  var palette = ['#53fc18', '#4ec9ff', '#ffb347', '#ff6bd6', '#b794ff', '#ff7b7b'];
+  var colors = {}, count = 0, stick = true, tags = false, total = 0, deleted = new Set(), suspended = false, wanted = [], unseen = 0, paused = false, muted = {};
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  try { muted = JSON.parse(lsGet('mk_mix_muted', '{}')) || {}; } catch (e) { muted = {}; }
+
+  // ---------- taille du texte, heure, pause (réglages mémorisés)
+  var fs = Math.max(11, Math.min(22, +lsGet('mk_mix_fs', 14) || 14));
+  function applyFs() { document.documentElement.style.setProperty('--fs', fs + 'px'); lsSet('mk_mix_fs', fs); }
+  applyFs();
+  document.getElementById('fm').onclick = function () { fs = Math.max(11, fs - 1); applyFs(); keepBottom(); };
+  document.getElementById('fp').onclick = function () { fs = Math.min(22, fs + 1); applyFs(); keepBottom(); };
+  var tt = document.getElementById('tt');
+  function applyTime(on) { document.body.classList.toggle('time', on); tt.classList.toggle('on', on); lsSet('mk_mix_time', on ? '1' : '0'); }
+  tt.onclick = function () { applyTime(!document.body.classList.contains('time')); keepBottom(); };
+  applyTime(lsGet('mk_mix_time', '0') === '1');
+  function setPaused(p) {
+    paused = p; PS.textContent = p ? '▶' : '⏸'; PS.classList.toggle('on', p); PS.setAttribute('aria-label', p ? 'Reprendre le chat' : 'Mettre le chat en pause');
+    if (!p) toBottom();
+  }
+  PS.onclick = function () { setPaused(!paused); };
+  function atBottom() { return (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 40; }
+  function toBottom() { stick = true; unseen = 0; paintMore(); window.scrollTo(0, document.body.scrollHeight); }
+  function keepBottom() { if (stick && !paused) window.scrollTo(0, document.body.scrollHeight); }
+  function paintMore() {
+    var show = !stick && unseen > 0;
+    MORE.classList.toggle('on', show);
+    if (show) MORE.textContent = '↓ ' + unseen + (unseen > 1 ? ' nouveaux messages' : ' nouveau message');
+  }
+  MORE.onclick = function () { setPaused(false); toBottom(); };
+  window.addEventListener('scroll', function () {
+    stick = atBottom();
+    if (stick) { unseen = 0; if (paused) { /* pause manuelle : on reste en pause même si on est en bas */ } }
+    paintMore();
+  }, {passive: true});
+
+  // ---------- puces de chaînes : couleur, état de connexion, filtre (toucher = masquer / afficher)
+  var muteStyle = document.createElement('style'); document.head.appendChild(muteStyle);
+  function paintMute() {
+    muteStyle.textContent = Object.keys(muted).filter(function (s) { return muted[s]; }).map(function (s) { return '.m[data-channel="' + s.replace(/[^a-z0-9_-]/gi, '') + '"]{display:none}'; }).join('');
+  }
+  paintMute();
+  function chip(slug) {
+    var b = CH.querySelector('.ch[data-s="' + slug + '"]');
+    if (!b) {
+      b = document.createElement('button'); b.className = 'ch'; b.dataset.s = slug; b.setAttribute('role', 'tab');
+      b.innerHTML = '<i></i><span></span>'; b.lastChild.textContent = slug.length > 14 ? slug.slice(0, 14) + '…' : slug;
+      b.onclick = function () {
+        var c = conns[slug];
+        if (c && c.state !== 'live' && !muted[slug]) { c.tries = 0; reconnect(slug); return; }   // une puce rouge / orange : toucher relance la connexion
+        muted[slug] = !muted[slug]; lsSet('mk_mix_muted', JSON.stringify(muted)); paintMute(); paintChips(); keepBottom();
+      };
+      CH.appendChild(b);
+    }
+    return b;
+  }
+  function paintChips() {
+    var keep = {};
+    wanted.forEach(function (s) {
+      keep[s] = 1; var b = chip(s), c = conns[s];
+      if (!colors[s]) colors[s] = palette[count++ % palette.length];
+      b.style.setProperty('--c', colors[s]);
+      b.dataset.st = c ? c.state : 'connecting';
+      b.classList.toggle('off', !!muted[s]);
+      b.setAttribute('aria-pressed', muted[s] ? 'false' : 'true');
+      b.title = muted[s] ? 'Chat masqué — toucher pour l’afficher' : (b.dataset.st === 'live' ? 'Connecté — toucher pour masquer' : 'Connexion en cours — toucher pour réessayer');
+    });
+    Array.prototype.forEach.call(CH.querySelectorAll('.ch'), function (b) { if (!keep[b.dataset.s]) b.remove(); });
+    CH.style.display = wanted.length ? 'flex' : 'none';
+    if (!total) E.innerHTML = wanted.length ? '<b>En attente de messages…</b>Les messages de ' + wanted.length + ' live' + (wanted.length > 1 ? 's' : '') + ' arrivent ici.' : '<b>Chat du multi</b>Ajoute des lives au multi : leurs messages apparaîtront ici.';
+  }
+
+  // ---------- messages
+  var BADGE = {broadcaster: ['B', '#ff5a5a'], moderator: ['M', '#53fc18'], vip: ['V', '#ff6bd6'], og: ['O', '#ffb347'], founder: ['F', '#ffd24d'], subscriber: ['S', '#ffd24d'], sub_gifter: ['G', '#4ec9ff'], verified: ['✓', '#4ec9ff'], staff: ['K', '#b794ff']};
+  function hhmm() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  window.mk = {
+    setTags: function (b) { tags = !!b; },
+    add: function (slug, m) {
+      if (!colors[slug]) colors[slug] = palette[count++ % palette.length];
+      E.style.display = 'none';
+      var d = document.createElement('div');
+      d.className = 'm' + (m.r ? ' rep' : '') + (stick && !paused ? ' new' : '');
+      d.dataset.channel = slug; d.dataset.id = String(m.id || ''); d.dataset.user = String(m.uid || '');
+      var tm = document.createElement('span'); tm.className = 'tm'; tm.textContent = hhmm(); d.appendChild(tm);
+      if (tags) {
+        var t = document.createElement('span');
+        t.className = 't';
+        t.style.background = colors[slug];
+        t.textContent = slug.length > 9 ? slug.slice(0, 9) : slug;
+        d.appendChild(t);
+      }
+      if (m.r) { var rp = document.createElement('span'); rp.className = 'rp'; rp.textContent = '↪ @' + m.r; d.appendChild(rp); }
+      (m.b || []).forEach(function (k) {
+        var def = BADGE[k]; if (!def) return;
+        var bd = document.createElement('span'); bd.className = 'bd'; bd.style.background = def[1]; bd.textContent = def[0]; d.appendChild(bd);
+      });
+      var u = document.createElement('span');
+      u.className = 'u';
+      u.textContent = m.u;
+      if (/^(rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)|#[0-9a-f]{6})$/i.test(m.c || '')) u.style.color = m.c;
+      d.appendChild(u);
+      d.appendChild(document.createTextNode(': '));
+      (m.p || []).forEach(function (p) {
+        if (p.i) {
+          if (/^https:\/\/files\.kick\.com\//.test(p.i)) {
+            var im = document.createElement('img');
+            im.src = p.i; im.alt = ''; im.decoding = 'async';
+            d.appendChild(im);
+          }
+        } else {
+          d.appendChild(document.createTextNode(p.t || ''));
+        }
+      });
+      L.appendChild(d);
+      if (++total > 300) { L.removeChild(L.firstChild); total--; }
+      if (stick && !paused) window.scrollTo(0, document.body.scrollHeight);
+      else if (!muted[slug]) { if (paused) stick = false; unseen++; paintMore(); }
+    }
+  };
+
+  // ---------- connexion directe au chat de chaque live (WebSocket Pusher, comme le site) : plus de lecture de la page de chat
+  var conns = {}, seen = {};
+  function removeRows(slug,id,user){Array.from(L.children).forEach(function(row){if(row.dataset.channel===slug && (id==null||row.dataset.id===String(id)) && (user==null||row.dataset.user===String(user)))row.remove();});total=L.children.length;}
+  function close(c){c.closed=true;clearTimeout(c.timer);if(c.controller)c.controller.abort();try{if(c.ws)c.ws.close();}catch(e){}}
+  function state(slug, st) { var c = conns[slug]; if (c) { c.state = st; paintChips(); } }
+
+  function parts(c) {
+    var out = [], re = /\[emote:(\d{1,20}):([^\]]{1,100})\]/g, at = 0, m;
+    while ((m = re.exec(c))) { if (m.index > at) out.push({t: c.slice(at, m.index)}); out.push({i: 'https://files.kick.com/emotes/' + m[1] + '/fullsize'}); at = re.lastIndex; }
+    if (at < c.length) out.push({t: c.slice(at)});
+    return out;
+  }
+  function connect(slug) {
+    var c = conns[slug] = conns[slug] || {tries: 0, closed: false};
+    c.closed = false; c.state = c.tries ? 'retry' : 'connecting'; paintChips();
+    var controller=c.controller=new AbortController();
+    function current(){return !suspended&&!c.closed&&conns[slug]===c;}
+    var deadline=setTimeout(function(){controller.abort();},12000);
+    fetch('/api/v2/channels/' + encodeURIComponent(slug), {credentials: 'include',signal:controller.signal}).then(function (r) { return r.json(); }).then(function (j) {
+      if(!current())throw new Error('closed');
+      c.room = j.chatroom && j.chatroom.id;
+      if (!c.room) throw new Error('no room');
+      return fetch('https://web.kick.com/api/v1/realtime/channels/' + j.id + '/chat/connection', {method: 'POST', credentials: 'include',signal:controller.signal,
+        headers: {'Content-Type': 'application/json', Accept: 'application/json'},
+        body: JSON.stringify({client: {id: (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()), type: 'web'}, capabilities: {accepted_providers: [{provider: 'pusher'}]}})});
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      clearTimeout(deadline);
+      if(!current())return;
+      var connections=j.data&&j.data.connections;var connection=Array.isArray(connections)&&connections.find(function(x){return x&&x.credentials;});var cr=connection&&connection.credentials;
+      if(!cr||!/^[a-z0-9-]{1,32}$/i.test(cr.cluster)||!/^[a-z0-9]{1,128}$/i.test(cr.app_key))throw new Error('Invalid chat connection');
+      var ws = c.ws = new WebSocket('wss://ws-' + cr.cluster + '.pusher.com/app/' + cr.app_key + '?protocol=7&client=js&version=8.4.0&flash=false');
+      ws.onmessage = function (e) {
+        if(!current())return;
+        var f; try { f = JSON.parse(e.data); } catch (x) { return; }
+        if (f.event === 'pusher:connection_established') { ws.send(JSON.stringify({event: 'pusher:subscribe', data: {auth: '', channel: 'chatrooms.' + c.room + '.v2'}})); return; }
+        if (f.event === 'pusher_internal:subscription_succeeded') { c.tries = 0; state(slug, 'live'); return; }
+        if (f.event === 'pusher:ping') { ws.send(JSON.stringify({event: 'pusher:pong', data: {}})); return; }
+
+        var d; try { d = typeof f.data==='string'?JSON.parse(f.data):f.data; } catch (x) { return; }
+        if(!d || typeof d!=='object')return;
+        if(/MessageDeletedEvent$/.test(f.event)){if(d.message&&d.message.id!=null){var key=slug+':'+d.message.id;deleted.add(key);if(deleted.size>1500)deleted.delete(deleted.values().next().value);removeRows(slug,d.message.id);}return;}
+        if(/ChatroomClearEvent$/.test(f.event)){removeRows(slug);return;}
+        if(/UserBannedEvent$/.test(f.event)){if(d.user&&d.user.id!=null)removeRows(slug,null,d.user.id);return;}
+        if(!/ChatMessageEvent$/.test(f.event))return;
+
+        if (!d || !d.sender || typeof d.content !== 'string' || d.id == null) return;
+        var k = slug + ':' + d.id; if (seen[k]||deleted.has(k)) return; seen[k] = 1; c.tries=0;
+        if (c.state !== 'live') state(slug, 'live');
+        var ks = Object.keys(seen); if (ks.length > 1500) delete seen[ks[0]];
+        var idt = d.sender.identity || {};
+        var reply = d.metadata && d.metadata.original_sender && d.metadata.original_sender.username;
+        var badges = (Array.isArray(idt.badges) ? idt.badges : []).map(function (x) { return x && x.type; }).filter(function (x) { return typeof x === 'string' && BADGE[x]; }).slice(0, 3);
+        window.mk.add(slug, {id:d.id,uid:d.sender.id,u: String(d.sender.username || 'Utilisateur').slice(0, 60), c: /^#[0-9a-f]{6}$/i.test(idt.color || '') ? idt.color : '', p: parts(d.content.slice(0, 600)),
+          r: reply ? String(reply).slice(0, 30) : '', b: badges});
+      };
+      ws.onclose = function () { if (current()) retry(slug); };
+      ws.onerror = function () { try { ws.close(); } catch (x) {} };
+    }).catch(function () { if (current()) retry(slug); }).finally(function(){clearTimeout(deadline);});
+  }
+  // on réessaie sans limite (2 s, 4 s … jusqu'à 30 s) : avant, le chat s'arrêtait définitivement après 5 échecs
+  function retry(slug) {
+    var c = conns[slug]; if (!c || c.closed) return;
+    c.tries++; state(slug, c.tries > 4 ? 'fail' : 'retry');
+    clearTimeout(c.timer);c.timer=setTimeout(function () { if (!suspended && conns[slug]===c && !c.closed) connect(slug); }, Math.min(30000, 1000 * Math.pow(2, Math.min(c.tries, 5) - 1)));
+  }
+  function reconnect(slug) { var c = conns[slug]; if (!c) return; try { if (c.ws) c.ws.close(); } catch (e) {} c.closed = true; clearTimeout(c.timer); if (c.controller) c.controller.abort(); delete conns[slug]; connect(slug); }
+  window.mk.setChannels = function (list) {
+    wanted=(Array.isArray(list)?list:[]).filter(function(s){return typeof s==='string'&&/^[a-z0-9_-]{1,50}$/i.test(s);}).slice(0,6);
+    var want = {}; if(!suspended)wanted.forEach(function (s) { want[s] = 1; });
+    Object.keys(conns).forEach(function (s) { if (!want[s]) { close(conns[s]);delete conns[s]; } });
+    Object.keys(want).forEach(function (s) { if (!conns[s]) connect(s); });
+    paintChips();
+  };
+  window.mk.suspend=function(){if(suspended)return;suspended=true;Object.keys(conns).forEach(function(s){close(conns[s]);delete conns[s];});paintChips();};
+  window.mk.resume=function(){if(!suspended)return;suspended=false;window.mk.setChannels(wanted);};
+  window.addEventListener('pagehide',function(){window.mk.suspend();});
+  document.addEventListener('visibilitychange',function(){if(document.hidden)window.mk.suspend();else window.mk.resume();});
+  paintChips();
+  try { Android.ready(); } catch (e) {}
+})();
+</script>
+</body></html>

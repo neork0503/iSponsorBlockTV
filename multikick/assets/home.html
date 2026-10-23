@@ -420,6 +420,22 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
   .vsplit{height:24px;align-items:center;background:#070b0d;border-top:1px solid var(--line)}
   .vsplit i{margin:0;height:5px;width:52px}
 }
+/* ---------- chat d'un live : barre d'outils, chargement / erreur, hauteur qui suit le clavier ---------- */
+.chside,.chatbox{position:relative;padding-top:42px;overflow:hidden}
+.cbar{position:absolute;left:0;right:0;top:0;height:42px;display:flex;align-items:center;gap:6px;padding:0 8px;background:#090e10;border-bottom:1px solid var(--line);z-index:3}
+.cbar b{flex:1;min-width:0;font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbar b i{font-style:normal;color:var(--g)}
+.cbar button{flex:none;min-width:36px;height:32px;padding:0 8px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:#fff;font-weight:800;font-size:12px}
+.cbar button:active{background:var(--card2)}
+.cload{position:absolute;left:0;right:0;top:42px;bottom:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);color:var(--m);font-size:13px;text-align:center;padding:20px}
+.cload .sk{width:70%;height:12px;border-radius:6px}.cload .sk+.sk{width:55%}.cload .sk+.sk+.sk{width:65%}
+.cload .btn2{padding:9px 18px}
+.cload.ok{display:none}
+.chatbox iframe{transform-origin:0 0}
+@media(orientation:portrait){#view .chatbox{height:calc(100vh - var(--ph,56.25vw) - 56px);height:calc(100dvh - var(--ph,56.25vw) - 56px)}}
+@media(orientation:landscape) and (max-width:899px){.chatbox{height:80vh;height:80dvh}}
+/* messages d'état (suivis indisponibles, aucun favori…) : petites cartes sobres au lieu de grands textes gris centrés */
+#hfol .msg,#hfavs .msg{margin:0 12px 10px;padding:12px 14px!important;border-radius:16px;background:var(--card);border:1px solid var(--line);text-align:left!important;font-size:13px;line-height:1.4}
 </style></head>
 <body>
 <header id="hdr"></header>
@@ -459,7 +475,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function jget(k, d) { try { return JSON.parse(ls(k) || 'null') || d; } catch (e) { return d; } }
   function jset(k, v) { lsSet(k, JSON.stringify(v)); }
-  function isWide() { return window.innerWidth >= 900 && window.innerWidth > window.innerHeight; }
+  function isWide() { return window.innerWidth >= 700 && window.innerWidth > window.innerHeight; }
   function fmt(n) { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : '' + n; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   // Kick attend le jeton de session dans l'en-tête Authorization (sinon /api/v1/user répond 401 même connecté)
@@ -1789,6 +1805,58 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
     $('aprh').onclick = function () { lsSet('mk_recent', '[]'); lsSet('mk_searches', '[]'); toast('Historique effacé'); };
   }
 
+
+  // ---------- chat d'un live : barre (taille du texte, recharger, masquer), écran de chargement, message d'erreur avec « Réessayer »
+  var CHAT_TXT = /just a moment|cloudflare|access denied|403|404|not found|error/i;
+  function chatFrameState(host, f, ov) {
+    var tries = 0, timer = null;
+    function show(html) { ov.className = 'cload'; ov.innerHTML = html; var r = ov.querySelector('[data-r]'); if (r) r.onclick = reload; }
+    function loading() { show('<div class="sk"></div><div class="sk"></div><div class="sk"></div><span>Chargement du chat…</span>'); }
+    function fail(why) { show('<span>' + why + '</span><button class="btn2" data-r>Réessayer</button>'); }
+    function ready() { clearTimeout(timer); ov.className = 'cload ok'; }
+    function check() {
+      clearTimeout(timer);
+      try {
+        var d = f.contentDocument, b = d && d.body;
+        if (!b || (!b.children.length && !(b.textContent || '').trim())) { if (++tries > 6) return fail('Chat indisponible pour le moment.'); timer = setTimeout(check, 700); return; }
+        var t = (b.textContent || '').trim();
+        if (t.length < 400 && CHAT_TXT.test(t) && !b.querySelector('textarea,[contenteditable],input')) return fail('Le chat n\u2019a pas pu se charger (vérification du site ou connexion).');
+        ready();
+      } catch (e) { ready(); }
+    }
+    function reload() { tries = 0; loading(); f.setAttribute('src', f.getAttribute('src')); timer = setTimeout(check, 1500); }
+    f.addEventListener('load', function () { tries = 0; timer = setTimeout(check, 900); });
+    loading(); timer = setTimeout(check, 1500);
+    setTimeout(function () { if (ov.isConnected && ov.className === 'cload') fail('Le chat met du temps à répondre.'); }, 12000);
+    return reload;
+  }
+  function ensureChat() {
+    Array.prototype.forEach.call(document.querySelectorAll('.chside:not([data-cb]),.chatbox:not([data-cb])'), function (host) {
+      var f = host.querySelector('iframe'); if (!f) return;
+      host.dataset.cb = 1;
+      var wide = host.classList.contains('chside'), bar = document.createElement('div'); bar.className = 'cbar';
+      bar.innerHTML = '<b>💬 Chat</b><button data-a="z-" aria-label="Texte plus petit">A\u2212</button><button data-a="z+" aria-label="Texte plus grand">A+</button><button data-a="r" aria-label="Recharger le chat">⟳</button>' + (wide ? '<button data-a="x" aria-label="Masquer le chat">▸</button>' : '');
+      var ov = document.createElement('div');
+      host.insertBefore(ov, host.firstChild); host.insertBefore(bar, host.firstChild);
+      var reload = chatFrameState(host, f, ov), z = +lsGet('mk_czp', 1) || 1;
+      if (!wide) setTimeout(function () {
+        var tabs = $('tabs'), pl = document.querySelector('#view>.pl');
+        if (!tabs || !pl || !host.isConnected || window.scrollY > 4) return;
+        var y = tabs.getBoundingClientRect().top + window.scrollY - pl.getBoundingClientRect().height;
+        if (y > 24) window.scrollTo({top: y, behavior: 'smooth'});
+      }, 450);
+      function zoom(v) { z = Math.max(0.7, Math.min(1.5, v)); lsSet('mk_czp', z); f.style.transform = 'scale(' + z + ')'; f.style.width = (100 / z) + '%'; f.style.height = (100 / z) + '%'; }
+      if (!wide) zoom(z);
+      bar.onclick = function (e) {
+        var b = e.target.closest('button'); if (!b) return; tap();
+        var a = b.dataset.a;
+        if (a === 'r') reload();
+        else if (wide) { var t = {'z-': 'cz-', 'z+': 'cz+', x: 'chx'}[a], x = $(t); if (x) x.click(); }   // en grand écran, ce sont les commandes déjà gérées par la page
+        else zoom(z + (a === 'z+' ? 0.1 : -0.1));
+      };
+    });
+  }
+
   // ---------- mise à jour à chaque changement de l'écran
   var pend = 0;
   function refresh() {
@@ -1796,7 +1864,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
     var tabs = H.style.display === 'none' && !B.classList.contains('cv') && !B.classList.contains('pip');
     B.classList.toggle('tabs-on', tabs);
     if (!tabs) bar.classList.remove('hide');
-    syncMulti(); ensureQuick(); ensureRecent(); ensureSkeleton(); ensureSearch(); ensureAppearance();
+    syncMulti(); ensureQuick(); ensureRecent(); ensureSkeleton(); ensureSearch(); ensureAppearance(); ensureChat();
   }
   function schedule() { if (!pend) pend = requestAnimationFrame(refresh); }
   new MutationObserver(schedule).observe(B, {childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'], characterData: true});

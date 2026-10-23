@@ -23,6 +23,11 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Profil › Apparence** : 6 couleurs d'accent (vert Kick, cyan, violet, rose, orange, blanc), cartes grandes ou compactes, effacer l'historique.
 - Le mini-lecteur ne se pose plus jamais sur la barre de navigation.
 
+## Chat (refait)
+- **Chat commun du multi** (`mix.html`) : texte lisible (14 px, réglable A−/A+), barre fixe avec une **puce par chaîne** (couleur, état de connexion ; toucher = masquer/afficher cette chaîne, ou relancer si la connexion est tombée), **heure** en option, **pause**, bouton « ↓ N nouveaux messages » quand on remonte, **badges** (modo, VIP, abonné, streamer…), **réponses** (↪ @pseudo). Les connexions sont **réessayées sans limite** (avant : abandon définitif après 5 échecs). Réglages mémorisés.
+- **Chat d'un live** : barre d'outils (A−/A+, recharger, masquer en grand écran), écran de chargement, message d'erreur avec « Réessayer » (chat vide ou page de vérification), hauteur qui suit le clavier (`dvh`). En **portrait**, la page remonte pour que le chat remplisse tout le reste de l'écran (la zone de saisie reste visible). En **paysage sur téléphone**, vidéo à gauche et chat à droite (comme sur tablette).
+- Messages d'état de l'accueil (suivis indisponibles, aucun favori…) : petites cartes sobres.
+
 ## Vérifications (automatiques, téléphone/tablette, portrait/paysage)
 - Aucun bouton recouvert par un autre élément, aucune zone de toucher trop petite, aucun débordement horizontal, sur tous les écrans (accueil, parcourir, suivis, profil, lives, rediffs, clips, drops, favoris, bloquées, catégorie, créateur, chaîne).
 - 43 scénarios réussis sur chacun des 4 formats : navigation, tuiles, puces de langue, cartes, + Multi, bloquer, profil créateur, recherche et historique, apparence, onglets de la chaîne, et toutes les commandes du lecteur.
