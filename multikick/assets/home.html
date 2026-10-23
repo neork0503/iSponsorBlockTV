@@ -1,6 +1,17 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<script>
+/* orientation réelle de l'appareil (et non la forme de la fenêtre) : quand le clavier s'ouvre, la fenêtre devient plus large que haute
+   sans que l'appareil ait tourné ; il ne faut alors surtout pas passer en mise en page « paysage ». */
+(function(){var de=document.documentElement;
+function land(){var o=window.screen&&screen.orientation&&screen.orientation.type;if(o)return /landscape/.test(o);
+ return window.screen?screen.width>screen.height:innerWidth>innerHeight;}
+window.__mkLand=land;function set(){var l=land();de.classList.toggle('land',l);de.classList.toggle('port',!l);
+ var kb=window.screen&&innerHeight<screen.height*.78;de.classList.toggle('kb',!!kb);}set();
+window.addEventListener('resize',set);window.addEventListener('orientationchange',set);
+try{screen.orientation.addEventListener('change',set);}catch(e){}})();
+</script>
 <style>
 :root{--bg:#0b0e0f;--card:#141a1c;--card2:#1d2528;--g:#53fc18;--t:#f2f4f5;--m:#8b979c;--nav:60px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -141,7 +152,9 @@ body.wide{padding-bottom:var(--nav)}
 .xbar span{color:var(--m);font-size:13px}
 .xbar .btn2{padding:8px 14px;font-size:13px}
 /* téléphone en paysage : le lecteur ne prend pas tout l'écran, on voit aussi les infos et le chat en dessous */
-@media(orientation:landscape) and (max-width:899px){.pl{aspect-ratio:auto;height:100vh;position:relative}.tabs{top:0}.chatbox{height:80vh;min-height:200px}}
+@media(max-width:899px){:where(html.land) .pl{aspect-ratio:auto;height:100vh;position:relative}
+:where(html.land) .tabs{top:0}
+:where(html.land) .chatbox{height:80vh;min-height:200px}}
 .blk{position:absolute;right:8px;top:8px;width:34px;height:34px;border-radius:17px;background:rgba(6,9,10,.62);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--line,#1b2326);display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff}
 #bko{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
 .bks{width:100%;max-width:520px;background:#12191c;border-radius:26px 26px 0 0;padding:20px 18px 26px;display:flex;flex-direction:column;gap:12px}
@@ -164,11 +177,9 @@ body.wide{padding-bottom:var(--nav)}
 .quick button:active{transform:scale(.97)}
 .quick b{font-size:15px}.quick span{color:var(--m);font-size:11.5px;line-height:1.3}
 /* téléphone en portrait : hauteur du lecteur réglable au doigt (poignée sous le lecteur) */
-@media(orientation:portrait){
-#view>.pl{aspect-ratio:auto;height:var(--ph,56.25vw)}
-#view .tabs{top:var(--ph,56.25vw)}
-#view .chatbox{height:calc(100vh - var(--ph,56.25vw) - 56px);min-height:200px}
-}
+:where(html.port) #view>.pl{aspect-ratio:auto;height:var(--ph,56.25vw)}
+:where(html.port) #view .tabs{top:var(--ph,56.25vw)}
+:where(html.port) #view .chatbox{height:calc(100vh - var(--ph,56.25vw) - 56px);min-height:200px}
 /* image dans l'image : seul le lecteur reste, plein cadre */
 body.pip nav,body.pip header,body.pip .after,body.pip .chside,body.pip .chsplit,body.pip .vsplit,body.pip .back,body.pip #navtab,body.pip .chshow{display:none!important}
 body.pip .pl,body.pip #view>.pl,body.pip .chmain .pl{position:fixed!important;inset:0;width:100vw!important;height:100vh!important;max-height:none!important;z-index:100}
@@ -177,7 +188,7 @@ body.pip .chmain{overflow:hidden}
 .vsplit i{width:56px;height:6px;border-radius:3px;background:rgba(255,255,255,.55);margin-bottom:7px}
 body.drag .vsplit i{background:var(--g)}
 .chview .vsplit{display:none}
-@media(orientation:landscape){.vsplit{display:none}}
+:where(html.land) .vsplit{display:none}
 /* ---------- habillage 2026 : verre dépoli, coins larges, animations douces ---------- */
 :root{--bg:#06090a;--card:#10171a;--card2:#182226;--nav:64px;--line:rgba(255,255,255,.07);--glow:0 0 24px rgba(83,252,24,.28)}
 html{color-scheme:dark}
@@ -252,13 +263,11 @@ nav{left:0;right:0;bottom:0;width:auto;transform:none;height:calc(var(--nav) + v
 nav button{border-radius:14px}
 nav .badge2{top:3px}
 /* paysage (téléphone ou tablette) : rail vertical à gauche, toute la hauteur reste pour le contenu */
-@media(orientation:landscape){
-  body{padding-bottom:16px;padding-left:calc(var(--rail) + env(safe-area-inset-left,0px))}
-  body.cv{padding-left:0!important}
-  nav{top:0;right:auto;bottom:0;width:calc(var(--rail) + env(safe-area-inset-left,0px));height:auto;flex-direction:column;justify-content:center;gap:6px;padding:8px 6px 8px calc(6px + env(safe-area-inset-left,0px));border-top:0;border-right:1px solid var(--line)}
-  nav button{flex:none;height:58px}
-  nav .badge2{left:calc(50% + 4px)}
-}
+:where(html.land) body{padding-bottom:16px;padding-left:calc(var(--rail) + env(safe-area-inset-left,0px))}
+:where(html.land) body.cv{padding-left:0!important}
+:where(html.land) nav{top:0;right:auto;bottom:0;width:calc(var(--rail) + env(safe-area-inset-left,0px));height:auto;flex-direction:column;justify-content:center;gap:6px;padding:8px 6px 8px calc(6px + env(safe-area-inset-left,0px));border-top:0;border-right:1px solid var(--line)}
+:where(html.land) nav button{flex:none;height:58px}
+:where(html.land) nav .badge2{left:calc(50% + 4px)}
 /* vignettes : compteur + durée groupés en haut à gauche, « + Multi » seul en bas à droite, bouton bloquer en haut à droite */
 .tl{position:absolute;left:8px;top:8px;right:52px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;pointer-events:none}
 .tl .badge,.tl .lt{position:static}
@@ -275,7 +284,7 @@ h2>span,h2>:first-child:not(a):not(button){min-width:0}
 .chips{padding-top:8px}
 /* mini-lecteur : posé au-dessus de la barre de navigation, jamais par-dessus */
 #mini-channel{bottom:calc(var(--nav) + var(--sab) + 12px);width:min(46vw,320px)}
-@media(orientation:landscape){#mini-channel{bottom:calc(var(--sab) + 12px);width:min(34vw,300px)}}
+:where(html.land) #mini-channel{bottom:calc(var(--sab) + 12px);width:min(34vw,300px)}
 #mini-channel[data-positioned]{bottom:auto}
 .mini-tools button{min-height:44px}
 .mini-actions button{width:40px;height:40px}
@@ -283,16 +292,17 @@ h2>span,h2>:first-child:not(a):not(button){min-width:0}
 #bko{z-index:80}
 .bks{padding-bottom:calc(26px + var(--sab))}
 /* tablette portrait : contenu centré, listes plus aérées */
-@media(min-width:700px) and (orientation:portrait){
-  #view>.grid,#view>.cgrid,#view>.quick,#view>.chips,#view>.row-s,#view>.srch{max-width:1000px;margin-inline:auto}
-  .grid{gap:22px 16px;padding:0 16px}
-  .quick{grid-template-columns:repeat(4,1fr);padding:2px 16px 4px}
-}
+@media(min-width:700px){:where(html.port) #view>.grid,:where(html.port) #view>.cgrid,:where(html.port) #view>.quick,:where(html.port) #view>.chips,:where(html.port) #view>.row-s,:where(html.port) #view>.srch{max-width:1000px;margin-inline:auto}
+:where(html.port) .grid{gap:22px 16px;padding:0 16px}
+:where(html.port) .quick{grid-template-columns:repeat(4,1fr);padding:2px 16px 4px}}
 /* tablette paysage : grille à 3 colonnes (le rail occupe déjà de la largeur) */
-@media(min-width:900px) and (orientation:landscape){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.quick{grid-template-columns:repeat(4,1fr)}}
-@media(min-width:1300px) and (orientation:landscape){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:900px){:where(html.land) .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+:where(html.land) .quick{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:1300px){:where(html.land) .grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 /* téléphone en paysage : cartes sur 2 colonnes au lieu d'une énorme vignette */
-@media(orientation:landscape) and (max-width:899px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cgrid{grid-template-columns:repeat(4,minmax(0,1fr))}.quick{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:899px){:where(html.land) .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+:where(html.land) .cgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+:where(html.land) .quick{grid-template-columns:repeat(4,1fr)}}
 </style>
 <style id="s26">
 /* ================= MultiKick 2026 : refonte visuelle et ergonomique ================= */
@@ -305,8 +315,7 @@ body.tabs-on #appbar{display:flex}
 #appbar.hide{transform:translateY(-100%)}
 #appbar .logo{width:34px;height:34px;border-radius:11px;background:#000;border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--glow)}
 #appbar .logo svg{width:19px;height:19px;fill:var(--g)}
-#appbar b{font-size:19px;font-weight:800;letter-spacing:-.03em}
-#appbar b i{font-style:normal;color:var(--g)}
+#appbar b{font-size:20px;font-weight:900;letter-spacing:.08em;color:var(--g)}
 #appbar .sp{flex:1}
 #appbar button{width:42px;height:42px;border-radius:21px;border:1px solid var(--line);background:var(--card);color:var(--t);display:grid;place-items:center;transition:transform .15s,background .2s}
 #appbar button:active{transform:scale(.92);background:var(--card2)}
@@ -364,7 +373,7 @@ nav button.on svg{fill:var(--g);filter:drop-shadow(0 0 7px rgba(var(--gr),.6))}
 nav button::before{content:'';position:absolute;top:-5px;left:50%;width:26px;height:3px;margin-left:-13px;border-radius:0 0 3px 3px;background:transparent;transition:background .2s,box-shadow .2s}
 nav button.on::before{background:var(--g);box-shadow:0 0 12px var(--g)}
 nav .badge2{background:var(--g);color:#031000}
-@media(orientation:landscape){nav button::before{top:50%;left:-6px;width:3px;height:26px;margin:-13px 0 0;border-radius:0 3px 3px 0}}
+:where(html.land) nav button::before{top:50%;left:-6px;width:3px;height:26px;margin:-13px 0 0;border-radius:0 3px 3px 0}
 /* --- squelettes de chargement --- */
 .sk{background:linear-gradient(100deg,var(--card) 30%,var(--card2) 50%,var(--card) 70%);background-size:300% 100%;animation:shim 1.3s linear infinite}
 @keyframes shim{to{background-position:-150% 0}}
@@ -381,7 +390,7 @@ nav .badge2{background:var(--g);color:#031000}
 #totop.on{opacity:1;transform:none;pointer-events:auto}
 #totop svg{width:22px;height:22px;fill:currentColor}
 body.cv #totop,body.pip #totop{display:none}
-@media(orientation:landscape){#totop{bottom:18px;left:calc(var(--rail) + 14px)}}
+:where(html.land) #totop{bottom:18px;left:calc(var(--rail) + 14px)}
 #ptr{position:fixed;top:calc(var(--bar) + 4px);left:50%;z-index:30;width:40px;height:40px;margin-left:-20px;border-radius:20px;background:var(--card2);border:1px solid var(--line);display:grid;place-items:center;opacity:0;transform:translateY(-30px);pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.5)}
 #ptr svg{width:22px;height:22px;fill:var(--g)}
 #ptr.spin svg{animation:rot .8s linear infinite}
@@ -411,15 +420,13 @@ body.dense .badge,body.dense .lt{font-size:11px;padding:2px 7px}body.dense .add{
 @media(min-width:1250px){body.dense .grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
 @media(prefers-reduced-motion:reduce){.sk{animation:none}}
 /* zones de toucher confortables (sans changer la mise en page) */
-.creator-name{padding:7px 0;margin:-7px 0;min-height:19px}
+.creator-name{padding:7px 0;margin:-7px 0;min-height:19px;position:relative;z-index:1}
 h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right:-6px}
 .pp,.cat,.chip,.li{-webkit-touch-callout:none}
 /* poignée de hauteur du lecteur : bande à part sous la vidéo (elle recouvrait les boutons du bas du lecteur) */
-@media(orientation:portrait){
-  .pl:has(>.vsplit) iframe{height:calc(100% - 24px)}
-  .vsplit{height:24px;align-items:center;background:#070b0d;border-top:1px solid var(--line)}
-  .vsplit i{margin:0;height:5px;width:52px}
-}
+:where(html.port) .pl:has(>.vsplit) iframe{height:calc(100% - 24px)}
+:where(html.port) .vsplit{height:24px;align-items:center;background:#070b0d;border-top:1px solid var(--line)}
+:where(html.port) .vsplit i{margin:0;height:5px;width:52px}
 /* ---------- chat d'un live : barre d'outils, chargement / erreur, hauteur qui suit le clavier ---------- */
 .chside,.chatbox{position:relative;padding-top:42px;overflow:hidden}
 .cbar{position:absolute;left:0;right:0;top:0;height:42px;display:flex;align-items:center;gap:6px;padding:0 8px;background:#090e10;border-bottom:1px solid var(--line);z-index:3}
@@ -432,10 +439,15 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
 .cload .btn2{padding:9px 18px}
 .cload.ok{display:none}
 .chatbox iframe{transform-origin:0 0}
-@media(orientation:portrait){#view .chatbox{height:calc(100vh - var(--ph,56.25vw) - 56px);height:calc(100dvh - var(--ph,56.25vw) - 56px)}}
-@media(orientation:landscape) and (max-width:899px){.chatbox{height:80vh;height:80dvh}}
+:where(html.port) #view .chatbox{height:calc(100vh - var(--ph,56.25vw) - 56px);height:calc(100dvh - var(--ph,56.25vw) - 56px)}
+@media(max-width:899px){:where(html.land) .chatbox{height:80vh;height:80dvh}}
 /* messages d'état (suivis indisponibles, aucun favori…) : petites cartes sobres au lieu de grands textes gris centrés */
 #hfol .msg,#hfavs .msg{margin:0 12px 10px;padding:12px 14px!important;border-radius:16px;background:var(--card);border:1px solid var(--line);text-align:left!important;font-size:13px;line-height:1.4}
+/* clavier ouvert en portrait : la vidéo se réduit pour que le chat garde de la place */
+html.kb.port #view>.pl{height:min(var(--ph,56.25vw),30vh);height:min(var(--ph,56.25vw),30dvh)}
+html.kb.port #view .tabs{top:min(var(--ph,56.25vw),30vh);top:min(var(--ph,56.25vw),30dvh)}
+html.kb.port #view .chatbox{height:calc(100vh - min(var(--ph,56.25vw),30vh) - 56px);height:calc(100dvh - min(var(--ph,56.25vw),30dvh) - 56px)}
+html.kb nav,html.kb #totop{display:none}
 </style></head>
 <body>
 <header id="hdr"></header>
@@ -475,7 +487,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function jget(k, d) { try { return JSON.parse(ls(k) || 'null') || d; } catch (e) { return d; } }
   function jset(k, v) { lsSet(k, JSON.stringify(v)); }
-  function isWide() { return window.innerWidth >= 700 && window.innerWidth > window.innerHeight; }
+  function isWide() { return window.innerWidth >= 700 && window.__mkLand(); }
   function fmt(n) { n = +n || 0; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : '' + n; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   // Kick attend le jeton de session dans l'en-tête Authorization (sinon /api/v1/user répond 401 même connecté)
@@ -1225,7 +1237,8 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
     native('orient', !!fs);
     setHdr('');
     var cur = V.querySelector('.pl');
-    if (cur && cur.dataset.s === slug && cur.dataset.m === (media || '')) return;   // plein écran : on garde le lecteur
+    // plein écran : on garde le lecteur ; sinon, si l'appareil a tourné (mise en page côte à côte <-> portrait), on reconstruit la page
+    if (cur && cur.dataset.s === slug && cur.dataset.m === (media || '') && (fs || cur.dataset.w === (wide ? '1' : '0'))) return;
     setHdr('');
     var plHtml = '<div class="pl" data-s="' + esc(slug) + '" data-m="' + esc(media || '') + '" data-w="' + (wide ? '1' : '0') + '"><div class="off" id="off"><b>Chargement…</b></div>' + (wide ? '' : '<div class="vsplit" id="vsp"><i></i></div>') + '</div>';
     var restHtml = '<div class="after"><div class="info" id="info"></div><div class="acts" id="acts"></div>' +
@@ -1471,7 +1484,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
   if(!miniPosition||!Number.isFinite(miniPosition.x)||!Number.isFinite(miniPosition.y))miniPosition={x:1,y:1};
   function miniReserve(){   // place réservée à la barre de navigation (même masquée sur la page du live) : rail à gauche en paysage, barre en bas en portrait
     var cs=getComputedStyle(document.documentElement),nav=parseFloat(cs.getPropertyValue('--nav'))||62,rail=parseFloat(cs.getPropertyValue('--rail'))||76;
-    return innerWidth>innerHeight?{l:rail,b:0}:{l:0,b:nav+10};
+    return window.__mkLand()?{l:rail,b:0}:{l:0,b:nav+10};
   }
   function placeMini(){
     if(!miniChannel||document.body.classList.contains('pip'))return;
@@ -1545,7 +1558,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
       if(!target.isConnected)return;var user=j.user;if(!user||!user.username)throw new Error('Profil indisponible');
       var image=user.profile_pic||user.profilepic||'',followers=j.followers_count;
       var count=typeof followers==='number'&&Number.isFinite(followers)&&followers>=0?fmt(followers):'—';
-      target.innerHTML='<div class="prof"><img src="'+esc(image)+'"><div class="tx"><b style="font-size:22px">'+esc(user.username)+'</b><div class="ct">'+count+' abonnés Kick</div><div class="ct">'+(j.livestream?'● En direct':'Hors ligne')+'</div></div></div><div style="padding:0 12px 14px;white-space:pre-wrap;color:#cfd6d9" id="creator-bio">'+esc(user.bio||'Aucune description disponible.')+'</div><div class="acts"><button class="pri" id="creator-watch">Regarder le live</button><button id="creator-add">+ MultiKick</button><button id="creator-fav">☆ Favori</button><button id="creator-official">Ouvrir sur Kick</button></div>';
+      target.innerHTML='<div class="prof"><img src="'+esc(image)+'"><div class="tx"><b style="font-size:22px">'+esc(user.username)+'</b><div class="ct">'+count+' abonnés Kick</div><div class="ct">'+(j.livestream?'● En direct':'Hors ligne')+'</div></div></div><div style="padding:0 12px 14px;white-space:pre-wrap;color:#cfd6d9" id="creator-bio">'+esc(user.bio||'Aucune description disponible.')+'</div><div class="acts"><button class="pri" id="creator-watch">Regarder le live</button><button id="creator-add">+ Multi</button><button id="creator-fav">☆ Favori</button><button id="creator-official">Ouvrir sur Kick</button></div>';
       $('creator-watch').onclick=function(){go('#/c/'+encodeURIComponent(slug));};$('creator-add').onclick=function(){native('add',slug);this.textContent='✓ Dans le multi';};
       var fav=$('creator-fav');function paintFav(){fav.textContent=native('isFav',slug)===true?'★ Favori':'☆ Favori';}paintFav();fav.onclick=function(){native('toggleFav',slug);setTimeout(paintFav,150);};
       $('creator-official').onclick=function(){native('openKick',slug);};
@@ -1649,7 +1662,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
   // ---------- barre du haut
   var K = 'M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z';
   var bar = document.createElement('div'); bar.id = 'appbar';
-  bar.innerHTML = '<span class="logo"><svg viewBox="0 0 24 24"><path d="' + K + '"/></svg></span><b>Multi<i>Kick</i></b><span class="sp"></span>' +
+  bar.innerHTML = '<span class="logo"><svg viewBox="0 0 24 24"><path d="' + K + '"/></svg></span><b>KICK</b><span class="sp"></span>' +
     '<button id="abs" aria-label="Rechercher"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg></button>' +
     '<button id="abm" aria-label="Ouvrir le multi"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></button>';
   B.insertBefore(bar, view());
@@ -1757,8 +1770,9 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
     var c = $('cats');
     if (c) {
       var real = c.querySelector('.cat'), sc = c.querySelector('.skcat');
-      if (!real && !sc) c.innerHTML = new Array(8).join('<div class="sk skcat"></div>');
+      if (!real && !sc && !c.dataset.sk) { c.dataset.sk = 1; c.innerHTML = new Array(8).join('<div class="sk skcat"></div>'); setTimeout(function () { if (c.isConnected && !c.querySelector('.cat')) { c.innerHTML = ''; c.previousElementSibling && c.previousElementSibling.matches('h2') && (c.previousElementSibling.style.display = 'none'); } }, 8000); }
       else if (real && sc) Array.prototype.forEach.call(c.querySelectorAll('.skcat'), function (x) { x.remove(); });
+      if (real && c.previousElementSibling && c.previousElementSibling.matches('h2')) c.previousElementSibling.style.display = '';
     }
   }
 
@@ -1830,6 +1844,17 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
     setTimeout(function () { if (ov.isConnected && ov.className === 'cload') fail('Le chat met du temps à répondre.'); }, 12000);
     return reload;
   }
+  function scrollToChat(host) {   // portrait : on remonte la page pour que le chat occupe tout le reste de l'écran
+    var tabs = $('tabs'), pl = document.querySelector('#view>.pl');
+    if (!tabs || !pl || (host && !host.isConnected) || window.scrollY > 4) return;
+    var y = tabs.getBoundingClientRect().top + window.scrollY - pl.getBoundingClientRect().height;
+    if (y > 24) window.scrollTo({top: y, behavior: 'smooth'});
+  }
+  var kbT = null;
+  window.addEventListener('resize', function () {   // le clavier s'ouvre (la vidéo se réduit) : le chat passe tout en haut, sa zone de saisie reste visible
+    clearTimeout(kbT);
+    kbT = setTimeout(function () { if (root.classList.contains('kb') && root.classList.contains('port') && document.querySelector('.chatbox')) { window.scrollTo(0, 0); scrollToChat(); } }, 250);
+  });
   function ensureChat() {
     Array.prototype.forEach.call(document.querySelectorAll('.chside:not([data-cb]),.chatbox:not([data-cb])'), function (host) {
       var f = host.querySelector('iframe'); if (!f) return;
@@ -1839,12 +1864,7 @@ h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right
       var ov = document.createElement('div');
       host.insertBefore(ov, host.firstChild); host.insertBefore(bar, host.firstChild);
       var reload = chatFrameState(host, f, ov), z = +lsGet('mk_czp', 1) || 1;
-      if (!wide) setTimeout(function () {
-        var tabs = $('tabs'), pl = document.querySelector('#view>.pl');
-        if (!tabs || !pl || !host.isConnected || window.scrollY > 4) return;
-        var y = tabs.getBoundingClientRect().top + window.scrollY - pl.getBoundingClientRect().height;
-        if (y > 24) window.scrollTo({top: y, behavior: 'smooth'});
-      }, 450);
+      if (!wide) setTimeout(function () { scrollToChat(host); }, 450);
       function zoom(v) { z = Math.max(0.7, Math.min(1.5, v)); lsSet('mk_czp', z); f.style.transform = 'scale(' + z + ')'; f.style.width = (100 / z) + '%'; f.style.height = (100 / z) + '%'; }
       if (!wide) zoom(z);
       bar.onclick = function (e) {

@@ -28,6 +28,13 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Chat d'un live** : barre d'outils (A−/A+, recharger, masquer en grand écran), écran de chargement, message d'erreur avec « Réessayer » (chat vide ou page de vérification), hauteur qui suit le clavier (`dvh`). En **portrait**, la page remonte pour que le chat remplisse tout le reste de l'écran (la zone de saisie reste visible). En **paysage sur téléphone**, vidéo à gauche et chat à droite (comme sur tablette).
 - Messages d'état de l'accueil (suivis indisponibles, aucun favori…) : petites cartes sobres.
 
+## Stabilité (bugs « à certains moments »)
+- **Clavier ouvert (surtout tablette en portrait)** : la fenêtre devenait plus large que haute, l'appli se croyait en paysage et la vidéo prenait tout l'écran en repoussant le chat hors de la vue. L'orientation vient maintenant de la rotation réelle de l'appareil ; avec le clavier ouvert la vidéo se réduit et le chat remonte sous la vidéo, zone de saisie visible. La barre de navigation se masque pendant la saisie.
+- **Rotation pendant un live** : la page se reconstruit dans la bonne mise en page (portrait / vidéo + chat côte à côte) ; le plein écran garde la vidéo sans la recharger.
+- **Chat commun** : messages ajoutés par paquets (fluide même avec 3 chats rapides), anti-doublons plus léger, messages supprimés/bannis aussi retirés de la file d'attente.
+- Squelette des catégories : retiré au bout de 8 s si le réseau est coupé (il clignotait indéfiniment).
+- La barre du haut affiche le logo Kick et « KICK » (plus « MultiKick »), boutons « + Multi ».
+
 ## Vérifications (automatiques, téléphone/tablette, portrait/paysage)
 - Aucun bouton recouvert par un autre élément, aucune zone de toucher trop petite, aucun débordement horizontal, sur tous les écrans (accueil, parcourir, suivis, profil, lives, rediffs, clips, drops, favoris, bloquées, catégorie, créateur, chaîne).
 - 43 scénarios réussis sur chacun des 4 formats : navigation, tuiles, puces de langue, cartes, + Multi, bloquer, profil créateur, recherche et historique, apparence, onglets de la chaîne, et toutes les commandes du lecteur.

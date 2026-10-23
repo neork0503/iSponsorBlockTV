@@ -126,13 +126,29 @@ img{height:1.7em;vertical-align:middle;margin:-2px 1px}
   // ---------- messages
   var BADGE = {broadcaster: ['B', '#ff5a5a'], moderator: ['M', '#53fc18'], vip: ['V', '#ff6bd6'], og: ['O', '#ffb347'], founder: ['F', '#ffd24d'], subscriber: ['S', '#ffd24d'], sub_gifter: ['G', '#4ec9ff'], verified: ['✓', '#4ec9ff'], staff: ['K', '#b794ff']};
   function hhmm() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  var queue = [], flushing = false;
+  function flush() {
+    flushing = false;
+    var batch = queue.splice(0, 80), frag = document.createDocumentFragment(), anim = queue.length < 20 && stick && !paused;
+    batch.forEach(function (it) { var d = build(it[0], it[1], anim); if (d) frag.appendChild(d); });
+    if (!frag.childNodes.length) { if (queue.length) schedule(); return; }
+    L.appendChild(frag); total = L.childElementCount;
+    while (total > 300) { L.removeChild(L.firstChild); total--; }
+    if (stick && !paused) window.scrollTo(0, document.body.scrollHeight);
+    else { var n = batch.filter(function (it) { return !muted[it[0]]; }).length; if (paused) stick = false; unseen += n; paintMore(); }
+    if (queue.length) schedule();
+  }
+  function schedule() { if (!flushing) { flushing = true; (window.requestAnimationFrame || setTimeout)(flush); } }
   window.mk = {
     setTags: function (b) { tags = !!b; },
-    add: function (slug, m) {
+    add: function (slug, m) { if (queue.length > 400) queue.splice(0, 100); queue.push([slug, m]); schedule(); }
+  };
+  function build(slug, m, anim) {
+      if (deleted.has(slug + ':' + m.id)) return null;
       if (!colors[slug]) colors[slug] = palette[count++ % palette.length];
       E.style.display = 'none';
       var d = document.createElement('div');
-      d.className = 'm' + (m.r ? ' rep' : '') + (stick && !paused ? ' new' : '');
+      d.className = 'm' + (m.r ? ' rep' : '') + (anim ? ' new' : '');
       d.dataset.channel = slug; d.dataset.id = String(m.id || ''); d.dataset.user = String(m.uid || '');
       var tm = document.createElement('span'); tm.className = 'tm'; tm.textContent = hhmm(); d.appendChild(tm);
       if (tags) {
@@ -164,16 +180,12 @@ img{height:1.7em;vertical-align:middle;margin:-2px 1px}
           d.appendChild(document.createTextNode(p.t || ''));
         }
       });
-      L.appendChild(d);
-      if (++total > 300) { L.removeChild(L.firstChild); total--; }
-      if (stick && !paused) window.scrollTo(0, document.body.scrollHeight);
-      else if (!muted[slug]) { if (paused) stick = false; unseen++; paintMore(); }
-    }
-  };
+      return d;
+  }
 
   // ---------- connexion directe au chat de chaque live (WebSocket Pusher, comme le site) : plus de lecture de la page de chat
-  var conns = {}, seen = {};
-  function removeRows(slug,id,user){Array.from(L.children).forEach(function(row){if(row.dataset.channel===slug && (id==null||row.dataset.id===String(id)) && (user==null||row.dataset.user===String(user)))row.remove();});total=L.children.length;}
+  var conns = {}, seen = new Set();
+  function removeRows(slug,id,user){queue=queue.filter(function(it){return !(it[0]===slug&&(id==null||String(it[1].id)===String(id))&&(user==null||String(it[1].uid)===String(user)));});Array.from(L.children).forEach(function(row){if(row.dataset.channel===slug && (id==null||row.dataset.id===String(id)) && (user==null||row.dataset.user===String(user)))row.remove();});total=L.children.length;}
   function close(c){c.closed=true;clearTimeout(c.timer);if(c.controller)c.controller.abort();try{if(c.ws)c.ws.close();}catch(e){}}
   function state(slug, st) { var c = conns[slug]; if (c) { c.state = st; paintChips(); } }
 
@@ -217,9 +229,8 @@ img{height:1.7em;vertical-align:middle;margin:-2px 1px}
         if(!/ChatMessageEvent$/.test(f.event))return;
 
         if (!d || !d.sender || typeof d.content !== 'string' || d.id == null) return;
-        var k = slug + ':' + d.id; if (seen[k]||deleted.has(k)) return; seen[k] = 1; c.tries=0;
+        var k = slug + ':' + d.id; if (seen.has(k)||deleted.has(k)) return; seen.add(k); if (seen.size > 1500) seen.delete(seen.values().next().value); c.tries=0;
         if (c.state !== 'live') state(slug, 'live');
-        var ks = Object.keys(seen); if (ks.length > 1500) delete seen[ks[0]];
         var idt = d.sender.identity || {};
         var reply = d.metadata && d.metadata.original_sender && d.metadata.original_sender.username;
         var badges = (Array.isArray(idt.badges) ? idt.badges : []).map(function (x) { return x && x.type; }).filter(function (x) { return typeof x === 'string' && BADGE[x]; }).slice(0, 3);
@@ -244,7 +255,7 @@ img{height:1.7em;vertical-align:middle;margin:-2px 1px}
     Object.keys(want).forEach(function (s) { if (!conns[s]) connect(s); });
     paintChips();
   };
-  window.mk.suspend=function(){if(suspended)return;suspended=true;Object.keys(conns).forEach(function(s){close(conns[s]);delete conns[s];});paintChips();};
+  window.mk.suspend=function(){if(suspended)return;suspended=true;queue.length=0;Object.keys(conns).forEach(function(s){close(conns[s]);delete conns[s];});paintChips();};
   window.mk.resume=function(){if(!suspended)return;suspended=false;window.mk.setChannels(wanted);};
   window.addEventListener('pagehide',function(){window.mk.suspend();});
   document.addEventListener('visibilitychange',function(){if(document.hidden)window.mk.suspend();else window.mk.resume();});
