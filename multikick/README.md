@@ -13,6 +13,16 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 
 - **Icône** : logo Kick (K vert en blocs sur fond noir), voir `tools/patch_icon.py`.
 
+## Refonte 2026 (accueil)
+- **Barre du haut** : logo Kick, recherche, bouton Multi (avec compteur) ; elle se masque en défilant vers le bas.
+- **Raccourcis en tuiles** (Lives, Rediffs, Clips, Drops), titres de section avec liseré d'accent, catégories avec le titre sur l'image, vignettes avec dégradé et point « live » rouge.
+- **Squelettes de chargement** à la place des « Chargement… ».
+- **Récemment regardés** : les dernières chaînes ouvertes (effaçable).
+- **Dernières recherches** sous la barre de recherche.
+- **Tirer vers le bas pour actualiser**, bouton « haut de page », bandeau « Hors connexion », retour haptique sur la barre du bas.
+- **Profil › Apparence** : 6 couleurs d'accent (vert Kick, cyan, violet, rose, orange, blanc), cartes grandes ou compactes, effacer l'historique.
+- Le mini-lecteur ne se pose plus jamais sur la barre de navigation.
+
 ## Reconstruire l'APK
     tools/build.sh Kick-v115.apk <keystore.p12> <mot_de_passe> <alias>
     # produit Kick-v115-ui.apk et Kick-v115-ui-cote-a-cote.apk
