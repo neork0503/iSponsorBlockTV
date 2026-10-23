@@ -410,6 +410,16 @@ body.dense .badge,body.dense .lt{font-size:11px;padding:2px 7px}body.dense .add{
 @media(min-width:900px){body.dense .grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(min-width:1250px){body.dense .grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
 @media(prefers-reduced-motion:reduce){.sk{animation:none}}
+/* zones de toucher confortables (sans changer la mise en page) */
+.creator-name{padding:7px 0;margin:-7px 0;min-height:19px}
+h2 a,h2 small{padding:12px 6px;margin-top:-12px;margin-bottom:-12px;margin-right:-6px}
+.pp,.cat,.chip,.li{-webkit-touch-callout:none}
+/* poignée de hauteur du lecteur : bande à part sous la vidéo (elle recouvrait les boutons du bas du lecteur) */
+@media(orientation:portrait){
+  .pl:has(>.vsplit) iframe{height:calc(100% - 24px)}
+  .vsplit{height:24px;align-items:center;background:#070b0d;border-top:1px solid var(--line)}
+  .vsplit i{margin:0;height:5px;width:52px}
+}
 </style></head>
 <body>
 <header id="hdr"></header>
@@ -1497,6 +1507,7 @@ body.dense .badge,body.dense .lt{font-size:11px;padding:2px 7px}body.dense .add{
     if(!host||!host.isConnected)return;var pl=host.querySelector('.pl');if(!pl)return;
     var slug=pl.dataset.s,media=pl.dataset.m;
     if(action==='multi'){native('add',slug);native('openMulti');}
+    else if(action==='back')history.back();
     else if(action==='choose')go('#/browse');
     else if(action==='profile')go('#/creator/'+encodeURIComponent(slug));
     else if(action==='fullscreen'){

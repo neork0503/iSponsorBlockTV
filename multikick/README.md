@@ -23,6 +23,11 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Profil › Apparence** : 6 couleurs d'accent (vert Kick, cyan, violet, rose, orange, blanc), cartes grandes ou compactes, effacer l'historique.
 - Le mini-lecteur ne se pose plus jamais sur la barre de navigation.
 
+## Vérifications (automatiques, téléphone/tablette, portrait/paysage)
+- Aucun bouton recouvert par un autre élément, aucune zone de toucher trop petite, aucun débordement horizontal, sur tous les écrans (accueil, parcourir, suivis, profil, lives, rediffs, clips, drops, favoris, bloquées, catégorie, créateur, chaîne).
+- 43 scénarios réussis sur chacun des 4 formats : navigation, tuiles, puces de langue, cartes, + Multi, bloquer, profil créateur, recherche et historique, apparence, onglets de la chaîne, et toutes les commandes du lecteur.
+- Correctifs issus de ces tests : la poignée de hauteur du lecteur recouvrait ses boutons du bas (téléphone portrait) → bande dédiée sous la vidéo ; le menu « ⋯ » du lecteur dépassait du cadre → grille de tuiles plein cadre ; ajout d'un bouton « ← Retour » dans ce menu ; zones de toucher agrandies (noms de streamers, « Tout voir »).
+
 ## Reconstruire l'APK
     tools/build.sh Kick-v115.apk <keystore.p12> <mot_de_passe> <alias>
     # produit Kick-v115-ui.apk et Kick-v115-ui-cote-a-cote.apk

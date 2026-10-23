@@ -43,7 +43,6 @@ padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-ev
 #bm{order:3}
 #sk{height:20px;min-width:60px}
 #viewers{flex:none;font-size:12px;opacity:.9}
-#viewers::before{content:'● ';color:#ff5a5a}
 #tm{flex:none;min-width:0;white-space:nowrap;font-size:12px;font-weight:700;padding:2px 0;cursor:default}
 #tm:not(.live){cursor:pointer;color:#fff;background:rgba(255,255,255,.16);border-radius:10px;padding:3px 9px}
 #tm:not(.live)::after{content:' ▸ direct';color:#53fc18}
@@ -54,11 +53,11 @@ padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-ev
 #quick{display:none!important}
 #ctl.hasq #bm{display:block}
 #ctl:not(.hasq) #bm{display:none}
-#ctl.menu #quick{display:flex!important;flex-direction:column;align-items:stretch;gap:2px;position:absolute;right:max(10px,env(safe-area-inset-right,0px));bottom:calc(100% - 28px);margin:0;padding:6px;border-radius:16px;background:rgba(18,22,25,.97);box-shadow:0 8px 24px rgba(0,0,0,.6);min-width:190px}
-#ctl.menu #quick button{background:transparent;border-radius:12px;min-height:44px;padding:0 14px;text-align:left;font-size:14px}
-#ctl.menu #quick button:active{background:rgba(255,255,255,.12)}
-@media(min-width:560px){#ctl.menu #quick{bottom:calc(100% - 12px)}#bt{order:1;flex:0 0 auto;justify-content:flex-start}#sr{order:2;flex:1 1 0}#ctl{flex-wrap:nowrap;padding-top:22px}}
-@media(max-height:430px){#ctl.menu #quick{bottom:calc(100% - 6px)}#ctl{padding-top:16px}#bt button,#bm{height:36px}}
+#ctl.menu #quick{display:grid!important;position:fixed;left:0;top:0;right:0;bottom:0;margin:0;padding:10px max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px));grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(48px,1fr);align-content:center;gap:8px;background:rgba(5,8,10,.98);z-index:9}
+#ctl.menu #quick button{display:flex;align-items:center;justify-content:center;min-height:48px;padding:6px 8px;border-radius:14px;background:rgba(255,255,255,.1);font-size:13px;line-height:1.2;text-align:center;white-space:normal}
+#ctl.menu #quick button:active{background:rgba(255,255,255,.22)}
+@media(min-width:560px){#bt{order:1;flex:0 0 auto;justify-content:flex-start}#sr{order:2;flex:1 1 0}#ctl{flex-wrap:nowrap;padding-top:22px}}
+@media(max-height:430px){#ctl{padding-top:16px}#bt button,#bm{height:36px}}
 </style></head>
 <body>
 <video id="v" muted autoplay playsinline poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
@@ -66,7 +65,7 @@ padding:7px 14px;border-radius:16px;opacity:0;transition:opacity .25s;pointer-ev
 <div id="toast"></div>
 
 <button id="zoomreset" aria-label="Revenir au zoom normal">Zoom 1×</button>
-<div id="ctl"><div id="quick"><button data-action="fullscreen">⛶ Plein écran</button><button data-action="multi">+ MultiKick</button><button data-action="choose">Choisir un live</button><button data-action="profile">Profil du créateur</button><button data-action="info">⬇ Infos</button></div><div id="sr"><input id="sk" type="range" min="0" max="1000" value="1000"><span id="viewers" aria-label="Nombre de spectateurs"></span><span id="tm" class="live">EN DIRECT</span></div>
+<div id="ctl"><div id="quick"><button data-action="back">← Retour</button><button data-action="fullscreen">⛶ Plein écran</button><button data-action="multi">+ MultiKick</button><button data-action="choose">Choisir un live</button><button data-action="profile">Profil du créateur</button><button data-action="info">⬇ Infos</button></div><div id="sr"><input id="sk" type="range" min="0" max="1000" value="1000"><span id="viewers" aria-label="Nombre de spectateurs"></span><span id="tm" class="live">EN DIRECT</span></div>
 <div id="bt"><button id="b30" aria-label="Reculer de 30 secondes">⏪ 30</button><button id="bpp" aria-label="Lecture / pause">⏸</button><button id="bf" aria-label="Avancer de 10 secondes">10 ⏩</button><button id="blive" class="at">● DIRECT</button><button id="bq" aria-label="Qualité">⚙ Auto</button></div><button id="bm" aria-label="Plus d'actions" aria-expanded="false">⋯</button></div>
 <svg width="0" height="0" style="position:absolute"><filter id="sh"><feConvolveMatrix order="3" kernelMatrix="0 -0.6 0 -0.6 3.4 -0.6 0 -0.6 0" preserveAlpha="true"/></filter></svg>
 <script>
@@ -298,7 +297,8 @@ window.__mkApi = null;
   }
   if (wantCtl) {
     var quick=document.getElementById('quick');
-    var bm=document.getElementById('bm');bm.onclick=function(e){e.stopPropagation();var o=ctl.classList.toggle('menu');bm.setAttribute('aria-expanded',o);clearTimeout(hideT);hideT=setTimeout(function(){ctl.classList.remove('on','menu');},o?9000:4500);};tm.onclick=function(){if(mode==='dvr')goLive();};if(parent!==window){ctl.classList.add('hasq');quick.querySelectorAll('[data-action]').forEach(function(button){button.onclick=function(e){e.stopPropagation();parent.postMessage({type:'mk-player-action',action:button.dataset.action},location.origin);};});}
+    var bm=document.getElementById('bm');bm.onclick=function(e){e.stopPropagation();var o=ctl.classList.toggle('menu');bm.setAttribute('aria-expanded',o);clearTimeout(hideT);hideT=setTimeout(function(){ctl.classList.remove('on','menu');},o?9000:4500);};tm.onclick=function(){if(mode==='dvr')goLive();};if(parent!==window){ctl.classList.add('hasq');quick.querySelectorAll('[data-action]').forEach(function(button){button.onclick=function(e){e.stopPropagation();ctl.classList.remove('menu');parent.postMessage({type:'mk-player-action',action:button.dataset.action},location.origin);};});}
+    quick.addEventListener('click',function(e){if(e.target===quick){ctl.classList.remove('menu');bm.setAttribute('aria-expanded','false');}});
     var swipeStart=null;
     document.addEventListener('touchstart',function(e){swipeStart=e.touches.length===1&&!ctl.contains(e.target)?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
     document.addEventListener('touchend',function(e){if(swipeStart&&e.changedTouches.length){var t=e.changedTouches[0];if(Math.abs(t.clientY-swipeStart.y)>25&&Math.abs(t.clientX-swipeStart.x)<80){showCtl();if(parent!==window)parent.postMessage({type:'mk-scroll',dir:t.clientY<swipeStart.y?1:-1},location.origin);}}swipeStart=null;},{passive:true});
