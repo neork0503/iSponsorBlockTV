@@ -9,7 +9,7 @@ Fichiers modifiés par rapport à `Kick-v115.apk` : `assets/home.html` et `asset
 - **Grilles** : 2 colonnes en téléphone paysage, 3-4 sur tablette ; contenu centré sur tablette portrait.
 - **Mini-lecteur** : posé au-dessus de la barre de navigation.
 - **Titres de section** : bouton « Actualiser » discret, texte des favoris aligné.
-- **Lecteur** (`player.html`) : boutons sur une ligne sans retour à la ligne, message de qualité et bouton « Zoom 1× » ne se chevauchent plus, marges de sécurité (encoche / barre système).
+- **Lecteur** (`player.html`) : commandes réduites à **une seule barre fine** (⏪30 · ⏯ · 10⏩ · qualité · barre de progression · spectateurs · EN DIRECT · ⋯). Les actions rares (plein écran, MultiKick, choisir un live, profil, infos) sont repliées dans le menu **⋯**. Toucher « EN DIRECT » quand on est en retard revient au direct. Plus de chevauchement entre le nombre de spectateurs et « EN DIRECT ».
 
 ## Reconstruire l'APK
     python3 tools/repack.py Kick-v115.apk unsigned.apk assets
